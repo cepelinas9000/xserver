@@ -19,6 +19,8 @@ shared_module(
     modesetting_srcs,
     name_prefix: '',
 
+    install_tag: 'xf86-video-modesetting',
+
     include_directories: [inc, xorg_inc],
     c_args: xorg_c_args,
     dependencies: [
@@ -50,6 +52,8 @@ install_man(configure_file(
     input: 'modesetting.man',
     output: 'modesetting.4',
     configuration: manpage_config,
+    install_tag:  'xf86-video-modesetting',
+
 ))
 
 test('modesetting symbol test',

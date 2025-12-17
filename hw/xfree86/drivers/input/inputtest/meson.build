@@ -7,6 +7,8 @@ shared_module(
     inputtestdrv_srcs,
     name_prefix: '',
 
+    install_tag: 'xf86-input-inputtest',
+
     include_directories: [inc, xorg_inc],
     c_args: xorg_c_args,
     dependencies: [common_dep],
@@ -19,8 +21,9 @@ shared_module(
 
 install_man(configure_file(
     input: 'inputtestdrv.man',
+    install_tag: 'xf86-input-inputtest',
     output: 'inputtestdrv.4',
     configuration: manpage_config,
 ))
 
-install_data('xf86-input-inputtest-protocol.h', install_dir: xorgsdkdir)
+install_data('xf86-input-inputtest-protocol.h', install_dir: xorgsdkdir, install_tag: 'xf86-input-inputtest')
