@@ -188,6 +188,7 @@ if build_xorg
      'touch.c',
      'xfree86.c',
      'xtest.c',
+     'ddc-tests.c',
     ]
     unit_c_args = ['-DXORG_TESTS']
     unit_includes = [inc, xorg_inc]

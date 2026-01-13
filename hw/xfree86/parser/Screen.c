@@ -241,6 +241,7 @@ static const xf86ConfigSymTabRec ScreenTab[] = {
     {VIRTUAL, "virtual"},
     {OPTION, "option"},
     {GDEVICE, "gpudevice"},
+    {HDR_TOKEN,"hdr"},
     {-1, ""},
 };
 
@@ -346,6 +347,21 @@ xf86parseScreenSection(void)
             break;
         case OPTION:
             ptr->scrn_option_lst = xf86parseOption(ptr->scrn_option_lst);
+            break;
+        case HDR_TOKEN:
+            if (xf86getSubToken(&(ptr->scrn_comment)) != XF86_TOKEN_STRING)
+                Error(QUOTE_MSG,"HDR");
+            if (strcmp(xf86_lex_val.str,"10i")) {
+                ptr->hdr_mode = "10i";
+            } else if (strcmp(xf86_lex_val.str,"16f")){
+                ptr->hdr_mode = "16f";
+            } else if (strcmp(xf86_lex_val.str,"32f")){
+               ptr->hdr_mode  = "32f";
+            } else if (strcmp(xf86_lex_val.str,"64f")){
+               ptr->hdr_mode  = "64f";
+            } else {
+              Error("HDR option can only contain 10i, 16f, 32f and 64f\n");
+            }
             break;
         case SUBSECTION:
             if (xf86getSubToken(&(ptr->scrn_comment)) != XF86_TOKEN_STRING)

@@ -2238,6 +2238,10 @@ use for the screen. This may be used to select an alternate implementation
 for development, debugging, or alternate feature sets.
 Default: mesa.
 .TP 7
+.BI "Option \*qHDR\*q \*q" string \*q
+This option can be \*off\* (default), \*10i\* - 10 bit per channels, \*16f\* - 16 bit float screen backing format. When this option is set the screen is in hdr mode. 
+
+.TP 7
 .BI "Option \*RenderingAPI\*q \*q" string \*q
 This option specifies an rendering API for use in conjunction with Glamor
 accel method. You can specify OpenGL with a value "gl" and OpenGL ES with a

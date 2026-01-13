@@ -83,7 +83,11 @@ typedef struct _Pixmap {
     unsigned usage_hint;        /* see CREATE_PIXMAP_USAGE_* */
 
     PixmapPtr primary_pixmap;    /* pointer to primary copy of pixmap for pixmap sharing */
+
+    uint64_t counter1;
+    uint64_t counter2;
 } PixmapRec;
+
 
 typedef struct _PixmapDirtyUpdate {
     DrawablePtr src;            /* Root window / shared pixmap */

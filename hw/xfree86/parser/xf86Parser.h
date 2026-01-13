@@ -284,6 +284,9 @@ typedef struct {
     int num_gpu_devices;
     const char *scrn_gpu_device_str[CONF_MAXGPUDEVICES];
     XF86ConfDevicePtr scrn_gpu_devices[CONF_MAXGPUDEVICES];
+
+    const char*  hdr_mode;
+ 
 } XF86ConfScreenRec, *XF86ConfScreenPtr;
 
 typedef struct {

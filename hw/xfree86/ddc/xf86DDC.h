@@ -38,6 +38,14 @@ extern _X_EXPORT xf86MonPtr xf86PrintEDID(xf86MonPtr monPtr);
 
 extern _X_EXPORT xf86MonPtr xf86InterpretEDID(int screenIndex, Uchar * block);
 
+/**
+ * @brief xf86DoInterpretHDRMetadata fill hdr structure using raw edid data
+ * This function is necessary because xf86InterpretEDID have no indication if this whole EDID or not
+ * @param monPtr
+ * @return true if colorimetry & hdr static metadata is found
+ */
+extern _X_EXPORT bool xf86DoInterpretHDRMetadata(xf86MonPtr monPtr);
+
 extern _X_EXPORT xf86MonPtr xf86InterpretEEDID(int screenIndex, Uchar * block);
 
 extern _X_EXPORT Bool xf86SetDDCproperties(ScrnInfoPtr pScreen, xf86MonPtr DDC);

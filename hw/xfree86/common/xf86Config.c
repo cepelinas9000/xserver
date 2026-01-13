@@ -1733,6 +1733,7 @@ configScreen(confScreenPtr screenp, XF86ConfScreenPtr conf_screen, int scrnum,
     screenp->defaultbpp = conf_screen->scrn_defaultbpp;
     screenp->defaultfbbpp = conf_screen->scrn_defaultfbbpp;
     screenp->monitor = XNFcallocarray(1, sizeof(MonRec));
+    screenp->hdr_mode = conf_screen->hdr_mode;
     /* If no monitor is specified, create a default one. */
     if (!conf_screen->scrn_monitor) {
         XF86ConfMonitorRec defMon;

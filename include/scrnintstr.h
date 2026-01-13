@@ -95,6 +95,14 @@ typedef enum {
     WINDOW_VRR_ENABLED,
 } WindowVRRMode;
 
+typedef enum {
+    SCREEN_HDR_MODE_OFF = 0, /* no hdr enabled */
+    SCREEN_HDR_MODE_10i, /* use 10bit for framebuffer and color blending */
+    SCREEN_HDR_MODE_16f, /*  IEEE 754-2008 binary16 float */
+    SCREEN_HDR_MODE_32f, /*  IEEE 754-2008 binary32 float */
+    SCREEN_HDR_MODE_64f, /* future proofing: IEEE 754-2008 binary64 float */
+} ScreenHDRMode;
+
 /*
  *  There is a typedef for each screen function pointer so that code that
  *  needs to declare a screen function pointer (e.g. in a screen private
@@ -705,6 +713,8 @@ typedef struct _Screen {
     /* additional screen post-close notify hooks (replaces wrapping CloseScreen)
        should NOT be touched outside of DIX core */
     CallbackListPtr hookPostClose;
+
+
 } ScreenRec;
 
 static inline RegionPtr

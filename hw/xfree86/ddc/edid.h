@@ -18,6 +18,8 @@
 #include <X11/Xfuncproto.h>
 #endif
 
+#include <stdbool.h>
+
 /* read complete EDID record */
 #define EDID1_LEN 128
 #define BITS_PER_BYTE 9
@@ -548,6 +550,40 @@ struct detailed_monitor_section {
     } section;                  /* max: 80 */
 };
 
+/**
+ * @brief The monitor_static_hdr_metatada_v1 hdr metadata struct
+ * This struct mirrors Table 92 - HDR Static Metadata Data Block (HDR SMDB) structure
+ */
+struct monitor_hdr_data {
+
+    bool hdr_valid : 1 ;  /* static metdata v1 found, doesn't mean all fields is set */
+    bool colorimetry_valid : 1; /* if colorimetry tag found */
+
+    bool tf_tradinional_sdr : 1,
+         tf_tradinional_hdr : 1,
+         tf_pq : 1,
+         tf_hlf : 1,
+         tf_4 : 1,
+         tf_5 : 1;
+
+    unsigned int resv:2;  /* reserved bits */
+
+    float desired_content_min_luminance; /* in cd/m2, can be 0 */
+    float desired_content_max_luminance; /* in cd/m2, can be 0  */
+    float desired_content_max_frame_avg_luminance; /* in cd/m2, if unset 0 */
+
+
+    bool sm_static_metdata_type1 : 1;
+
+    unsigned int sm_1_7 : 7;  /* reserved bits */
+
+    int reserved_1[4]; /* for future */
+
+    unsigned int colorimetry_profiles : 16;
+
+    int reserved_2[4]; /* for future */
+};
+
 /* flags */
 #define MONITOR_EDID_COMPLETE_RAWDATA	0x01
 /* old, don't use */
@@ -568,6 +604,7 @@ typedef struct {
     unsigned long flags;
     int no_sections;
     Uchar *rawData;
+    struct monitor_hdr_data hdr;
 } xf86Monitor, *xf86MonPtr;
 
 extern _X_EXPORT xf86MonPtr ConfiguredMonitor;
@@ -590,6 +627,34 @@ extern _X_EXPORT xf86MonPtr ConfiguredMonitor;
 #define CEA_VENDOR_BLK  3
 #define CEA_SPEAKER_ALLOC_BLK 4
 #define CEA_VESA_DTC_BLK 5
+/* #define CTA_RESERVED_BLK 6 */
+
+#define CTA_EXTENDED_BLK 7 /* formely CEA */
+
+#define CTA_EXTENDED_BLK_TAG_COLORIMETRY 5
+#define CTA_EXTENDED_BLK_TAG_HDR_STATIC_METADATA 6
+
+#define CTA_HDR_SMDB_TF_SDR 1
+#define CTA_HDR_SMDB_TF_HDR 2
+#define CTA_HDR_SMDB_TF_ST2084 4
+#define CTA_HDR_SMDB_TF_HLG 8
+
+#define CTA_HDR_SMDB_SM_TYPE1 1
+
+/* these constants are from Colorimetry Data Block (CDB) byte 3 and 4 converted into natural representation (big endian ) uint16 */
+
+#define is_CTA_CDB_BT2020_RGB(x)   ( ((x) & 0x8000) == 0x8000)
+#define is_CTA_CDB_BT2020_YCC(x)   ( ((x) & 0x4000) == 0x4000)
+#define is_CTA_CDB_BT2020_cYCC(x)  ( ((x) & 0x2000) == 0x2000)
+#define is_CTA_CDB_opRGB(x)        ( ((x) & 0x1000) == 0x1000)
+#define is_CTA_CDB_opYCC601(x)     ( ((x) & 0x0800) == 0x0800)
+#define is_CTA_CDB_sYCC601(x)      ( ((x) & 0x0400) == 0x0400)
+#define is_CTA_CDB_xvYCC709(x)     ( ((x) & 0x0200) == 0x0200)
+#define is_CTA_CDB_xvYCC601(x)     ( ((x) & 0x0100) == 0x0100)
+#define is_CTA_CDB_ST2113RGB(x)    ( ((x) & 0x0080) == 0x0080)
+#define is_CTA_CFB_iCtCp(x)        ( ((x) & 0x0040) == 0x0040)
+
+
 #define VENDOR_SUPPORT_AI(x) ((x) >> 7)
 #define VENDOR_SUPPORT_DC_48bit(x)  ( ( (x) >> 6) & 0x01)
 #define VENDOR_SUPPORT_DC_36bit(x)  ( ( (x) >> 5) & 0x01)
