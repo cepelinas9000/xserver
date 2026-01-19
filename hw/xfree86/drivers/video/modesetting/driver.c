@@ -1283,6 +1283,17 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     if (!ms->drmmode.kbpp)
         ms->drmmode.kbpp = pScrn->bitsPerPixel;
 
+    /* XXX: need better place */
+  if (strcmp(pScrn->confScreen->hdr_mode,"10i")) {
+      pScrn->hdr_mode = SCREEN_HDR_MODE_10i;
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"16f")){
+      pScrn->hdr_mode = SCREEN_HDR_MODE_16f;
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"32f")){
+      pScrn->hdr_mode = SCREEN_HDR_MODE_32f;
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"64f")){
+      pScrn->hdr_mode = SCREEN_HDR_MODE_64f;
+  }
+
     /* Process the options */
     xf86CollectOptions(pScrn, NULL);
     if (!(ms->drmmode.Options = calloc(1, sizeof(Options))))
@@ -1445,6 +1456,7 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->shadow.Update32to24 = LoaderSymbolFromModule(mod, "shadowUpdate32to24");
         ms->shadow.UpdatePacked = LoaderSymbolFromModule(mod, "shadowUpdatePacked");
     }
+
 
     return TRUE;
  fail:

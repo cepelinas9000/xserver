@@ -424,6 +424,7 @@ void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_
  *  - (connector) HDR_OUTPUT_METADATA from edid (EOTF: SMPTE ST 2084 (PQ), white points, limits)
  *  - (connector) Colorspace BT2020_RGB
  * @param drmmode_output
+ * @return false if false on failure
  */
 bool drmmode_crtc_set_colorimetry(xf86OutputPtr output);
 

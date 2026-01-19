@@ -117,6 +117,12 @@ get_opaque_format(uint32_t format)
         return DRM_FORMAT_XRGB8888;
     case DRM_FORMAT_ARGB2101010:
         return DRM_FORMAT_XRGB2101010;
+    case DRM_FORMAT_ABGR2101010:
+        return DRM_FORMAT_XBGR2101010;
+    case DRM_FORMAT_ARGB16161616F:
+        return DRM_FORMAT_XRGB16161616F;
+    case DRM_FORMAT_ABGR16161616F:
+        return DRM_FORMAT_XBGR16161616F;
     default:
         return format;
     }
@@ -1181,7 +1187,7 @@ drmmode_gbm_format_for_hdr(ScreenHDRMode hdr_mode)
     case SCREEN_HDR_MODE_16f:
         return GBM_FORMAT_ABGR16161616F;
     default:
-        /* it can happen if modesetting driver is not from same codebase as rest Xserver */
+        /* it can happen if modesetting driver is not from same codebase as rest Xserver or mode is not supported */
         FatalError("Unknown hdr mode requested %d\n", (int)hdr_mode);
         return  GBM_FORMAT_ARGB8888;
     break;
@@ -5141,6 +5147,10 @@ void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_
 
 bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
 
+    if (output->MonInfo == NULL){
+        return false;
+    }
+
     if (!(output->MonInfo->hdr.colorimetry_valid &&  output->MonInfo->hdr.hdr_valid)){
         return false;
     }
@@ -5160,6 +5170,9 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
                                            DRM_MODE_OBJECT_CRTC);
 
 
+    if (drm_props == NULL){
+        return false;
+    }
     uint32_t colorspace_id = drmmode_crtc_get_prop_id(drmmode->fd,
                                                     drm_props,
                                                     "Colorspace");
