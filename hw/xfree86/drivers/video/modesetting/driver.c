@@ -1978,7 +1978,6 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     modesettingPtr ms = modesettingPTR(pScrn);
-    VisualPtr visual;
 
     pScrn->pScreen = pScreen;
 
@@ -2033,7 +2032,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     if (pScrn->bitsPerPixel > 8) {
         /* Fixup RGB ordering */
-        visual = pScreen->visuals + pScreen->numVisuals;
+    VisualPtr visual = pScreen->visuals + pScreen->numVisuals;
         while (--visual >= pScreen->visuals) {
             if ((visual->class | DynamicClass) == DirectColor) {
                 visual->offsetRed = pScrn->offset.red;
@@ -2051,7 +2050,10 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         short numVisuals = pScreen->numVisuals + 2;
         VisualPtr visuals = reallocarray(pScreen->visuals, numVisuals, sizeof(VisualRec));
 
-        VisualPtr v = &visual[numVisuals - 2];
+        pScreen->visuals = visuals;
+        pScreen->numVisuals = numVisuals;
+
+        VisualPtr v = &visuals[numVisuals - 2];
         v->vid = dixAllocServerXID();
         v->class = HDRColor | DynamicClass;
         v->offsetBlue  = 0;
@@ -2063,7 +2065,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         v->redMask = 0;
 
         v->bitsPerRGBValue = 16;
-        v->ColormapEntries = 10000; /* 10'000 nits here as there are nore sense... */
+        v->ColormapEntries = 10000; /* that not used here... */
         v->nplanes = 64;
 
         pScreen->allowedDepths[7].numVids = 1;
@@ -2072,7 +2074,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
 
         /* this is 10 bit bgr */
-        v = &visual[numVisuals - 1];
+        v = &visuals[numVisuals - 1];
         v->vid = dixAllocServerXID();
         v->class = HDRColor | DynamicClass;
         v->offsetBlue  = 0;
