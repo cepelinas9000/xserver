@@ -87,7 +87,7 @@ OF THIS SOFTWARE.
 #ifndef MAXGPUSCREENS
 #define MAXGPUSCREENS	16
 #endif
-#define MAXFORMATS	8
+#define MAXFORMATS	10
 #ifndef MAXDEVICES
 #define MAXDEVICES	256      /* input devices */
 #endif
