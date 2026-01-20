@@ -409,7 +409,7 @@ hdr_color_xy_from_u16(uint16_t v)
     return v / 50000.0f;
 }
 
-#define HDMI_EOTF_ST2084 0
+#define HDMI_EOTF_ST2084 2
 /**
  * @brief drmmode_crtc_set_hdr_static_metadata_v1 just sets hdr_output_metadata property
  * note: it need be independet function - dynamic hdr, full screen exclusive, settings changed later

@@ -1990,6 +1990,8 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         ms->drmmode.gbm = ms->glamor.egl_get_gbm_device(pScreen);
 #endif
 
+    ms->drmmode.hdr_mode = pScrn->hdr_mode;
+
     /* HW dependent - FIXME */
     pScrn->displayWidth = pScrn->virtualX;
     if (!drmmode_create_initial_bos(pScrn, &ms->drmmode))

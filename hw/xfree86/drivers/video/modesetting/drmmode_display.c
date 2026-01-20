@@ -5130,7 +5130,7 @@ void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_
 
         int ret = drmModeObjectSetProperty(drmmode_output->drmmode->fd,
                                    drmmode_output->mode_output->connector_id,
-                                   DRM_MODE_OBJECT_CRTC, drmmode_output->conector_HDR_OUTPUT_METADATA_id,
+                                   DRM_MODE_OBJECT_CONNECTOR, drmmode_output->conector_HDR_OUTPUT_METADATA_id,
                                    blob_id);
     if (ret != 0)
         xf86DrvMsg(drmmode_output->drmmode->scrn->scrnIndex, X_ERROR,
@@ -5167,7 +5167,7 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
 
     drmModeObjectPropertiesPtr drm_props = drmModeObjectGetProperties(drmmode->fd,
                                            drmmode_output->mode_output->connector_id,
-                                           DRM_MODE_OBJECT_CRTC);
+                                           DRM_MODE_OBJECT_CONNECTOR);
 
 
     if (drm_props == NULL){
@@ -5186,7 +5186,7 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
         }
     }
 
-    drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CRTC,colorspace_id,colorspace_bt2020_rgb_e);
+    drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,colorspace_bt2020_rgb_e);
 
     drmModeFreeProperty(drmmode_prop);
 
