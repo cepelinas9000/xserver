@@ -115,8 +115,8 @@ static PixmapFormatRec formats[MAXFORMATS] = {
     {16, 16, BITMAP_SCANLINE_PAD},
     {24, 32, BITMAP_SCANLINE_PAD},
     {32, 32, BITMAP_SCANLINE_PAD},
-    {64, 64, BITMAP_SCANLINE_PAD},
-    {128,128, BITMAP_SCANLINE_PAD} /* for FLOAT32 RGB */
+    {64, 64, 64},
+    {128,128, 128} /* for FLOAT32 RGB */
 };
 
 static int numFormats = 9;
