@@ -254,7 +254,7 @@ typedef struct glamor_screen_private {
      * supported pixel formats, including these that are not supported on GL side
      * directly, but are converted to another format instead.
      */
-    struct glamor_format formats[33];
+    struct glamor_format formats[65];
     struct glamor_format cbcr_format;
 
     /* glamor point shader */

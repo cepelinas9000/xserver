@@ -2046,6 +2046,48 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         }
     }
 
+
+    if (pScrn->hdr_mode != SCREEN_HDR_MODE_OFF){
+        short numVisuals = pScreen->numVisuals + 2;
+        VisualPtr visuals = reallocarray(pScreen->visuals, numVisuals, sizeof(VisualRec));
+
+        VisualPtr v = &visual[numVisuals - 2];
+        v->vid = dixAllocServerXID();
+        v->class = HDRColor | DynamicClass;
+        v->offsetBlue  = 0;
+        v->offsetRed   = 16;
+        v->offsetGreen = 24;
+
+        v->blueMask = 0;
+        v->greenMask = 0;
+        v->redMask = 0;
+
+        v->bitsPerRGBValue = 16;
+        v->ColormapEntries = 10000; /* 10'000 nits here as there are nore sense... */
+        v->nplanes = 64;
+
+        /* this is 10 bit bgr */
+        v = &visual[numVisuals - 1];
+        v->vid = dixAllocServerXID();
+        v->class = HDRColor | DynamicClass;
+        v->offsetBlue  = 0;
+        v->offsetRed   = 10;
+        v->offsetGreen = 20;
+
+        v->blueMask = 0;
+        v->greenMask = 0;
+        v->redMask = 0;
+
+        v->bitsPerRGBValue = 10;
+        v->ColormapEntries = 1024; /* do we care at all? */
+        v->nplanes = 32;
+
+        /* maybe add 8 bit "HDR" visual - in this case you can set different gamma function for pixel??? */
+
+    }
+
+
+
     fbPictureInit(pScreen, NULL, 0);
 
     if (drmmode_init(pScrn, &ms->drmmode) == FALSE) {

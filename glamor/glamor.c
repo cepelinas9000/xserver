@@ -606,6 +606,12 @@ glamor_setup_formats(ScreenPtr screen)
                           GL_RGB10_A2, GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV, TRUE);
     }
 
+    /* XXX: this one manual!
+     *  Q: what to do when there are two 64 bit formats; float16 and int16? I asking because  glamor_priv->formats["depth"] is integer */
+    glamor_add_format(screen,64,PIXMAN_FORMAT_BYTE(64,PIXMAN_TYPE_RGBA_FLOAT,16,16,16,16), /* this is hardware only format - as long depth is ok shoudn't be problem */
+                      GL_BGRA, GL_BGRA,GL_HALF_FLOAT, TRUE);
+
+
     glamor_priv->cbcr_format.depth = 16;
     if (glamor_priv->is_gles && glamor_priv->has_rg) {
         glamor_priv->cbcr_format.internalformat = GL_RG;
