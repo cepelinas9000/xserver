@@ -2066,6 +2066,11 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         v->ColormapEntries = 10000; /* 10'000 nits here as there are nore sense... */
         v->nplanes = 64;
 
+        pScreen->allowedDepths[7].numVids = 1;
+        pScreen->allowedDepths[7].vids = calloc(1,sizeof(VisualID));
+        pScreen->allowedDepths[7].vids[0] = v->vid;
+
+
         /* this is 10 bit bgr */
         v = &visual[numVisuals - 1];
         v->vid = dixAllocServerXID();
