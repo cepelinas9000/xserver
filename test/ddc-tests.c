@@ -1,8 +1,11 @@
 /* Mostly these tests about HDR edid data parsing */
 
+#undef NDEBUG
+
+#include <dix-config.h>
+
 /* Test relies on assert() */
 #include "xf86DDC.h"
-#undef NDEBUG
 
 #include <stdio.h>
 #include "tests-common.h"
@@ -35,7 +38,7 @@ static unsigned char samsung_q800t_hdmi2_0_edid[] = {
   0x74, 0x00, 0x00, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x10
 };
-static unsigned int samsung_q800t_hdmi2_0_edid_len = 256;
+/* static unsigned int samsung_q800t_hdmi2_0_edid_len = 256; */
 /*
 make: Samsung Electric Company
 model: SAMSUNG
@@ -83,7 +86,7 @@ static  unsigned char msi_mag321curv_dp_edid[] = {
   0x00, 0x00, 0x00, 0x4a
 };
 
-static  unsigned int msi_mag321curv_dp_edid_len = 256;
+/*static  unsigned int msi_mag321curv_dp_edid_len = 256;*/
 /*
 model: MAG321CURV
 serial: DA2A019360041
@@ -127,7 +130,7 @@ static unsigned char qemu_edid[] = {
   0x00, 0x00, 0x00, 0x2f
 };
 
-static unsigned int qemu_edid_len = 256;
+/*static unsigned int qemu_edid_len = 256;*/
 
 /* nothing hdr in qumu edid - it for sanity check */
 
@@ -156,7 +159,7 @@ static unsigned char hp_5dq99aa_hdmi_edid[] = {
   0x53, 0x21, 0x00, 0x00, 0x1a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0xa3
 };
-static unsigned int hp_5dq99aa_hdmi_edid_len = 256;
+/*static unsigned int hp_5dq99aa_hdmi_edid_len = 256;*/
 /*
 make: HP Inc.
 model: HP 27 QD
@@ -281,7 +284,6 @@ parse_simple(void)
     assert(is_CTA_CDB_BT2020_RGB(mon->hdr.colorimetry_profiles));
 
     free(mon);
-
 
 
 

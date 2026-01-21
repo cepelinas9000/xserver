@@ -1854,7 +1854,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
         for (i = 0; i < xf86_config->num_output; i++) {
             xf86OutputPtr output = xf86_config->output[i];
             if (crtc->scrn->hdr_mode != SCREEN_HDR_MODE_OFF){
-                    drmmode_crtc_set_colorimetry(output);
+                    drmmode_crtc_set_colorimetry(output,true);
             }
         }
 
@@ -5116,14 +5116,18 @@ drmmode_crtc_set_vrr(xf86CrtcPtr crtc, Bool enabled)
 
 void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_output,struct hdr_output_metadata *hdr_metadata)
 {
-    if (!drmmode_output->hdr_active){
-        return;
-    }
 
+    if (drmmode_output->conector_HDR_OUTPUT_METADATA_id > 0){    /* clear hdr output XXX: it need to work when no hdr is set - it for cases when something where set HDR_OUTPUT_METADATA previously*/
 
-    if (hdr_metadata == NULL){    /* clear hdr output */
-        //drmModeDestroyPropertyBlob(drmmode_output->drmmode->fd, drmmode_output->conector_HDR_OUTPUT_METADATA_id);
-    } else {
+        int ret = drmModeObjectSetProperty(drmmode_output->drmmode->fd,
+                                   drmmode_output->mode_output->connector_id,
+                                   DRM_MODE_OBJECT_CONNECTOR, drmmode_output->conector_HDR_OUTPUT_METADATA_id,
+                                   0);
+        if (ret != 0)
+            xf86DrvMsg(drmmode_output->drmmode->scrn->scrnIndex, X_ERROR,
+                   "Failed to clear HDR_OUTPUT_METADATA property: %d\n", ret);
+
+    } else if (drmmode_output->hdr_active){
         /* we should perform similar checks as in gamescope somewhere */
         uint32_t blob_id;
         drmModeCreatePropertyBlob(drmmode_output->drmmode->fd,hdr_metadata,sizeof(struct hdr_output_metadata),&blob_id);
@@ -5145,7 +5149,7 @@ void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_
 
 }
 
-bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
+bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable){
 
     if (output->MonInfo == NULL){
         return false;
@@ -5155,9 +5159,7 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
         return false;
     }
 
-    if (!is_CTA_CDB_BT2020_RGB(output->MonInfo->hdr.colorimetry_profiles)){
-        return false;
-    }
+
 
 
     drmmode_output_private_ptr drmmode_output = (drmmode_output_private_ptr)output->driver_private;
@@ -5186,7 +5188,18 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
         }
     }
 
-    drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,colorspace_bt2020_rgb_e);
+    if (colorspace_bt2020_rgb_e == -1){
+        enable = false;
+    }
+
+    if (is_CTA_CDB_BT2020_RGB(output->MonInfo->hdr.colorimetry_profiles)){
+        drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,colorspace_bt2020_rgb_e);
+    } else if(enable == false){
+        drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,0);
+
+    }
+
+
 
     drmModeFreeProperty(drmmode_prop);
 
@@ -5198,38 +5211,41 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output){
     drmModeFreeObjectProperties(drm_props);
 
     /* --- */
+    if (enable){
+        drmmode_output->hdr_active = true;
 
-    drmmode_output->hdr_active = true;
+        /* output hdr mode infor frame */
+        struct hdr_output_metadata meta;
 
-    /* output hdr mode infor frame */
-    struct hdr_output_metadata meta;
+        meta.metadata_type = 0;
+        struct hdr_metadata_infoframe *type1 = &meta.hdmi_metadata_type1;
 
-    meta.metadata_type = 0;
-    struct hdr_metadata_infoframe *type1 = &meta.hdmi_metadata_type1;
+        type1->metadata_type = 0; /* hdr_metadata_infoframe type is 0 */
 
-    type1->metadata_type = 0; /* hdr_metadata_infoframe type is 0 */
+        type1->eotf = HDMI_EOTF_ST2084;
+        type1->display_primaries[0].x = hdr_color_xy_to_u16(output->MonInfo->features.redx);
+        type1->display_primaries[0].y = hdr_color_xy_to_u16(output->MonInfo->features.redy);
 
-    type1->eotf = HDMI_EOTF_ST2084;
-    type1->display_primaries[0].x = hdr_color_xy_to_u16(output->MonInfo->features.redx);
-    type1->display_primaries[0].y = hdr_color_xy_to_u16(output->MonInfo->features.redy);
+        type1->display_primaries[1].x = hdr_color_xy_to_u16(output->MonInfo->features.greenx);
+        type1->display_primaries[1].y = hdr_color_xy_to_u16(output->MonInfo->features.greeny);
 
-    type1->display_primaries[1].x = hdr_color_xy_to_u16(output->MonInfo->features.greenx);
-    type1->display_primaries[1].y = hdr_color_xy_to_u16(output->MonInfo->features.greeny);
+        type1->display_primaries[2].x = hdr_color_xy_to_u16(output->MonInfo->features.bluex);
+        type1->display_primaries[2].y = hdr_color_xy_to_u16(output->MonInfo->features.bluey);
 
-    type1->display_primaries[2].x = hdr_color_xy_to_u16(output->MonInfo->features.bluex);
-    type1->display_primaries[2].y = hdr_color_xy_to_u16(output->MonInfo->features.bluey);
-
-    type1->white_point.x = hdr_color_xy_to_u16(output->MonInfo->features.redx);
-    type1->white_point.y = hdr_color_xy_to_u16(output->MonInfo->features.redy);
-
-
-    type1->max_display_mastering_luminance = output->MonInfo->hdr.desired_content_max_luminance;
-    type1->min_display_mastering_luminance = output->MonInfo->hdr.desired_content_min_luminance;
-    type1->max_cll = output->MonInfo->hdr.desired_content_max_luminance;
-    type1->max_fall = output->MonInfo->hdr.desired_content_max_frame_avg_luminance;
+        type1->white_point.x = hdr_color_xy_to_u16(output->MonInfo->features.whitex);
+        type1->white_point.y = hdr_color_xy_to_u16(output->MonInfo->features.whitey);
 
 
-    drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,&meta);
+        type1->max_display_mastering_luminance = output->MonInfo->hdr.desired_content_max_luminance;
+        type1->min_display_mastering_luminance = output->MonInfo->hdr.desired_content_min_luminance;
+        type1->max_cll = output->MonInfo->hdr.desired_content_max_luminance;
+        type1->max_fall = output->MonInfo->hdr.desired_content_max_frame_avg_luminance;
+
+        drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,NULL);
+
+    } else {
+        drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,NULL);
+    }
 
     return true;
 }

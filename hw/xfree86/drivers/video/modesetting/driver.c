@@ -2285,6 +2285,19 @@ LeaveVT(ScrnInfoPtr pScrn)
         return;
 #endif
 
+
+
+  /* reset HDR metadata */
+
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+
+    for (size_t i = 0; i < xf86_config->num_output; i++) {
+        xf86OutputPtr output = xf86_config->output[i];
+        if (pScrn->hdr_mode != SCREEN_HDR_MODE_OFF){
+            drmmode_crtc_set_colorimetry(output,false);
+        }
+    }
+
     if (!ms->fd_passed)
         drmDropMaster(ms->fd);
 }
