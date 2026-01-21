@@ -1284,7 +1284,9 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->drmmode.kbpp = pScrn->bitsPerPixel;
 
     /* XXX: need better place */
-  if (strcmp(pScrn->confScreen->hdr_mode,"10i")) {
+  if (pScrn->confScreen->hdr_mode == NULL){
+  
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"10i")) {
       pScrn->hdr_mode = SCREEN_HDR_MODE_10i;
   } else if (strcmp(pScrn->confScreen->hdr_mode,"16f")){
       pScrn->hdr_mode = SCREEN_HDR_MODE_16f;
