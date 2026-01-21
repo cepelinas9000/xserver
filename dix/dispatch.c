@@ -1036,7 +1036,7 @@ ProcGetGeometry(ClientPtr client)
 
     xGetGeometryReply reply = {
         .root = pDraw->pScreen->root->drawable.id,
-        .depth = pDraw->depth,
+        .depth = client->latch_is_set ? client->latched_depth : pDraw->depth, /** XXX: !!! **/
         .width = pDraw->width,
         .height = pDraw->height,
     };
@@ -1101,6 +1101,55 @@ ProcQueryTree(ClientPtr client)
 
     return X_SEND_REPLY_WITH_RPCBUF(client, reply, rpcbuf);
 }
+
+/** @{ */
+int
+XXXProcLatchVisual(ClientPtr client){
+
+
+    REQUEST(xCreateWindowReq);
+    REQUEST_SIZE_MATCH(xCreateWindowReq);
+
+    if (client->latch_is_set){
+      return BadAccess;
+    }
+
+    xGenericReply reply = { 0};
+    reply.data05 = 0x55aa55aa;
+
+    client->latch_is_set = true;
+    client->latched_depth = stuff->depth;
+    client->latched_visualid = stuff->visual;
+
+    return X_SEND_REPLY_SIMPLE(client, reply);
+}
+
+
+int
+XXXProcUnlatchVisual(ClientPtr client){
+
+    REQUEST(xCreateWindowReq);
+    REQUEST_SIZE_MATCH(xCreateWindowReq);
+
+    if (!client->latch_is_set){
+      return BadAccess;
+    }
+
+    client->latch_is_set = false;
+
+
+    client->latched_depth = stuff->depth;
+    client->latched_visualid = stuff->visual;
+
+    xGenericReply reply = { 0};
+    reply.data05 = 0xaa55aa55;
+
+    return X_SEND_REPLY_SIMPLE(client, reply);
+
+}
+
+
+/** @} */
 
 int
 ProcInternAtom(ClientPtr client)

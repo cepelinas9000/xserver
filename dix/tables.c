@@ -198,10 +198,10 @@ int (*ProcVector[256]) (ClientPtr /* client */) = {
     ProcBadRequest,
     ProcBadRequest,
     ProcBadRequest,
-    ProcBadRequest,                     /* 125 */
-    ProcBadRequest,
+    XXXProcLatchVisual,                     /* 125 */
+    XXXProcUnlatchVisual,
     ProcNoOperation,
-    ProcBadRequest,
+    ProcBadRequest,                     /* 128 */
     ProcBadRequest,
     ProcBadRequest,
     ProcBadRequest,

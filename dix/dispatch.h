@@ -34,6 +34,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * extension.c, property.c.
  */
 
+
 int ProcAllocColor(ClientPtr /* client */ );
 int ProcAllocColorCells(ClientPtr /* client */ );
 int ProcAllocColorPlanes(ClientPtr /* client */ );
@@ -140,4 +141,30 @@ int ProcUninstallColormap(ClientPtr /* client */ );
 int ProcUnmapSubwindows(ClientPtr /* client */ );
 int ProcUnmapWindow(ClientPtr /* client */ );
 
+/** \brief These are cleary hacks
+ *  They latching is by reporposing structure xCreateWindowReq
+ *
+ *
+ *  @{
+ */
+
+
+/**
+ * @brief ProcLatchVisual Latch visual id and depth for any window queries
+ * IT is necessary for maitaining "maximum" compability for HDR until found better method,
+ * as by default vulkan creates surface visual blindly copying from parent window (or screen) assuming it always supoort 32 bit,24 bit something
+ * It is implemented using xCreateWindowReq call into 125 function
+ * @return BadMatch if depth & Visual not exis
+ */
+int XXXProcLatchVisual(ClientPtr /* client */ );
+
+/**
+ * @brief ProcUnlatchVisual restore normal behaviour
+ * @return BadAccess if there where not latch othervise generic event with all zeros
+ * Call xCreateWindowReq call to 126 function
+
+ */
+int XXXProcUnlatchVisual(ClientPtr /* client */ );
+
+/** @} */
 #endif                          /* DISPATCH_H */

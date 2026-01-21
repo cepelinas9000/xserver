@@ -34,6 +34,8 @@ SOFTWARE.
 #include "pixmap.h"
 #include "privates.h"
 
+#include <stdbool.h>
+
 struct _Client;
 typedef struct _ClientId *ClientIdPtr;
 
@@ -112,6 +114,11 @@ typedef struct _Client {
     DeviceIntPtr clientPtr;
     struct _ClientId *clientIds;
     int req_fds;
+
+    bool latch_is_set;
+    uint16_t latched_depth;
+    VisualID latched_visualid;
+
 } ClientRec;
 
 extern _X_EXPORT TimeStamp currentTime;

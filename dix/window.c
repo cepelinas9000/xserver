@@ -1596,7 +1596,7 @@ ProcGetWindowAttributes(ClientPtr client)
         .allEventMasks = pWin->eventMask | wOtherEventMasks(pWin),
         .doNotPropagateMask = wDontPropagateMask(pWin),
         .class = pWin->drawable.class,
-        .visualID = wVisual(pWin),
+        .visualID = client->latch_is_set ? client->latched_visualid : wVisual(pWin),
     };
 
     if (client->swapped) {
