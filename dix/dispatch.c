@@ -156,7 +156,7 @@ Equipment Corporation.
 
 xConnSetupPrefix connSetupPrefix;
 
-PaddingInfo PixmapWidthPaddingInfo[33];
+PaddingInfo PixmapWidthPaddingInfo[129];
 
 static ClientPtr grabClient;
 static ClientPtr currentClient; /* Client for the request currently being dispatched */
@@ -3984,22 +3984,24 @@ dixMarkClientException(ClientPtr client)
 {
     client->noClientException = -1;
 }
-
+// XXX: these contant tables need to be revised as our bit depth are in 128 order
 /*
  * This array encodes the answer to the question "what is the log base 2
  * of the number of pixels that fit in a scanline pad unit?"
  * Note that ~0 is an invalid entry (mostly for the benefit of the reader).
  */
-static const int answer[6][4] = {
-    /* pad   pad   pad     pad */
-    /*  8     16    32    64 */
+static const int answer[8][6] = {
+    /* pad   pad   pad     pad  pad*/
+    /*  8     16    32    64    128*/
 
-    {3, 4, 5, 6},               /* 1 bit per pixel */
-    {1, 2, 3, 4},               /* 4 bits per pixel */
-    {0, 1, 2, 3},               /* 8 bits per pixel */
-    {~0, 0, 1, 2},              /* 16 bits per pixel */
-    {~0, ~0, 0, 1},             /* 24 bits per pixel */
-    {~0, ~0, 0, 1}              /* 32 bits per pixel */
+    { 3,  4,  5,  6, 7},   /* 1 bit per pixel */
+    { 1,  2,  3,  4, 5},   /* 4 bits per pixel */
+    { 0,  1,  2,  3, 4},   /* 8 bits per pixel */
+    {~0,  0,  1,  2, 3},   /* 16 bits per pixel */
+    {~0, ~0,  0,  1, 2},   /* 24 bits per pixel */
+    {~0, ~0,  0,  1, 2},   /* 32 bits per pixel */
+    {~0, ~0, ~0,  0, 1},   /* 64 bits per pixel */
+    {~0, ~0, ~0, ~0, 0},   /* 128 bits per pixel */
 };
 
 /*
@@ -4007,7 +4009,7 @@ static const int answer[6][4] = {
  * the answer array above given the number of bits per pixel?"
  * Note that ~0 is an invalid entry (mostly for the benefit of the reader).
  */
-static const int indexForBitsPerPixel[33] = {
+static const int indexForBitsPerPixel[129] = {
     ~0, 0, ~0, ~0,              /* 1 bit per pixel */
     1, ~0, ~0, ~0,              /* 4 bits per pixel */
     2, ~0, ~0, ~0,              /* 8 bits per pixel */
@@ -4016,14 +4018,19 @@ static const int indexForBitsPerPixel[33] = {
     ~0, ~0, ~0, ~0,
     4, ~0, ~0, ~0,              /* 24 bits per pixel */
     ~0, ~0, ~0, ~0,
-    5                           /* 32 bits per pixel */
+    5 , ~0, ~0, ~0,            /* 32 bits per pixel */
+    ~0, ~0, ~0, ~0,
+    ~0, ~0, ~0, ~0,
+    ~0, ~0, ~0, ~0,
+    ~0, ~0, ~0, ~0,
+
 };
 
 /*
  * This array gives the bytesperPixel value for cases where the number
  * of bits per pixel is a multiple of 8 but not a power of 2.
  */
-static const int answerBytesPerPixel[33] = {
+static const int answerBytesPerPixel[129] = {
     ~0, 0, ~0, ~0,              /* 1 bit per pixel */
     0, ~0, ~0, ~0,              /* 4 bits per pixel */
     0, ~0, ~0, ~0,              /* 8 bits per pixel */
@@ -4040,7 +4047,7 @@ static const int answerBytesPerPixel[33] = {
  * the answer array above given the number of bits per scanline pad unit?"
  * Note that ~0 is an invalid entry (mostly for the benefit of the reader).
  */
-static const int indexForScanlinePad[65] = {
+static const int indexForScanlinePad[129] = {
     ~0, ~0, ~0, ~0,
     ~0, ~0, ~0, ~0,
     0, ~0, ~0, ~0,              /* 8 bits per scanline pad unit */

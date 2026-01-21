@@ -5117,7 +5117,10 @@ drmmode_crtc_set_vrr(xf86CrtcPtr crtc, Bool enabled)
 void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_output,struct hdr_output_metadata *hdr_metadata)
 {
 
-    if (drmmode_output->conector_HDR_OUTPUT_METADATA_id > 0){    /* clear hdr output XXX: it need to work when no hdr is set - it for cases when something where set HDR_OUTPUT_METADATA previously*/
+    if (drmmode_output->conector_HDR_OUTPUT_METADATA_id == 0){
+        return;
+    }
+    if (hdr_metadata == NULL) {    /* clear hdr output XXX: it need to work when no hdr is set - it for cases when something where set HDR_OUTPUT_METADATA previously*/
 
         int ret = drmModeObjectSetProperty(drmmode_output->drmmode->fd,
                                    drmmode_output->mode_output->connector_id,
@@ -5182,9 +5185,12 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable){
      drmModePropertyPtr   drmmode_prop = drmModeGetProperty(drmmode->fd, colorspace_id);
 
     int colorspace_bt2020_rgb_e = -1;
+    int colorspace_default = 0;
     for(int i =0;i < drmmode_prop->count_enums;++i){
         if (strcmp(drmmode_prop->enums[i].name,"BT2020_RGB") == 0){
           colorspace_bt2020_rgb_e = drmmode_prop->enums[i].value;
+        } else if (strcmp(drmmode_prop->enums[i].name,"BT2020_RGB") == 0){
+            colorspace_default = drmmode_prop->enums[i].value;
         }
     }
 
@@ -5193,9 +5199,9 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable){
     }
 
     if (is_CTA_CDB_BT2020_RGB(output->MonInfo->hdr.colorimetry_profiles)){
-        drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,colorspace_bt2020_rgb_e);
+        drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,enable ? colorspace_bt2020_rgb_e : colorspace_default);
     } else if(enable == false){
-        drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,0);
+        drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,colorspace_default);
 
     }
 
@@ -5241,7 +5247,7 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable){
         type1->max_cll = output->MonInfo->hdr.desired_content_max_luminance;
         type1->max_fall = output->MonInfo->hdr.desired_content_max_frame_avg_luminance;
 
-        drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,NULL);
+        drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,&meta);
 
     } else {
         drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,NULL);
