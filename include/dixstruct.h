@@ -118,6 +118,7 @@ typedef struct _Client {
     bool latch_is_set;
     uint16_t latched_depth;
     VisualID latched_visualid;
+    uint32_t latched_bpp;
 
 } ClientRec;
 

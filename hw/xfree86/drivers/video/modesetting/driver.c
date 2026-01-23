@@ -2057,66 +2057,70 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
         VisualPtr v = &visuals[numVisuals - 3];
         v->vid = dixAllocServerXID();
-        v->class = HDRColor | DynamicClass;
+        v->class = HDRColor;
         v->offsetBlue  = 0;
         v->offsetRed   = 16;
         v->offsetGreen = 24;
 
-        v->blueMask = 0xffff;
-        v->greenMask = 0xffff0000;
-        v->redMask = (uint32_t)0xffff0000; /* leave some bits for alpha */
+        v->blueMask = (uint32_t)0x0000ffff;
+        v->greenMask =(uint32_t)0xffff0000;
+        v->redMask =  (uint32_t)0xffff0000; /* leave some bits for alpha */
 
         v->bitsPerRGBValue = 16;
         v->ColormapEntries = 10000; /* that not used here... */
         v->nplanes = 64;
 
-        pScreen->allowedDepths[8].numVids = 1;
-        pScreen->allowedDepths[8].vids = calloc(1,sizeof(VisualID));
-        pScreen->allowedDepths[8].vids[0] = v->vid;
+        pScreen->allowedDepths[7].numVids = 1;
+        pScreen->allowedDepths[7].vids = calloc(1,sizeof(VisualID));
+        pScreen->allowedDepths[7].vids[0] = v->vid;
 
 
         /* this is 10 bit bgr */
         v = &visuals[numVisuals - 2];
         v->vid = dixAllocServerXID();
-        v->class = HDRColor | DynamicClass;
+        v->class = HDRColor;
         v->offsetBlue  = 0;
         v->offsetRed   = 10;
         v->offsetGreen = 20;
 
-        v->blueMask = 0x3ff;;
+        v->blueMask = 0x3ff;
         v->greenMask = 0xffc00;
-        v->redMask = (uint32_t)0x3ff000000;
+        v->redMask = (uint32_t)0xffc00000;
 
         v->bitsPerRGBValue = 10;
         v->ColormapEntries = 1024; /* do we care at all? */
         v->nplanes = 32;
 
-        pScreen->allowedDepths[7].numVids = 1;
-        pScreen->allowedDepths[7].vids = calloc(1,sizeof(VisualID));
-        pScreen->allowedDepths[7].vids[0] = v->vid;
 
-        /* maybe add 8 bit "HDR" visual - in this case you can set different gamma function for pixel??? */
 
-/*
+        pScreen->allowedDepths[6].numVids+=1;
+        pScreen->allowedDepths[6].vids = reallocarray(pScreen->allowedDepths[6].vids, pScreen->allowedDepths[6].numVids , sizeof(VisualID));
+        pScreen->allowedDepths[6].vids[pScreen->allowedDepths[6].numVids - 1 ] = v->vid;
+
+
+        /* maybe add 8 bit "HDR" visual - in this case you can set different gamma function for pixel and tell Xserver  to apply transformations */
+
         v = &visuals[numVisuals - 1];
         v->vid = dixAllocServerXID();
-        v->class = HDRColor | DynamicClass;
+        v->class = HDRColor ;
         v->offsetBlue  = 0;
         v->offsetRed   = 8;
         v->offsetGreen = 16;
 
-        v->blueMask = 0xff;;
+        v->blueMask = 0xff;
         v->greenMask = 0xff00;
         v->redMask = (uint32_t)0xff0000;
 
         v->bitsPerRGBValue = 8;
-        v->ColormapEntries = 256; / * do we care at all? * /
+        v->ColormapEntries = 256;
         v->nplanes = 32;
 
-        pScreen->allowedDepths[6].numVids !!! = 1;
-        pScreen->allowedDepths[6].vids !!! = calloc(1,sizeof(VisualID));
-        pScreen->allowedDepths[6].vids !!! [0] = v->vid;
-*/
+        pScreen->allowedDepths[6].numVids+=1;
+        pScreen->allowedDepths[6].vids = reallocarray(pScreen->allowedDepths[6].vids, pScreen->allowedDepths[6].numVids , sizeof(VisualID));
+        pScreen->allowedDepths[6].vids[pScreen->allowedDepths[6].numVids - 1 ] = v->vid;
+
+
+
     }
 
 

@@ -371,7 +371,7 @@ proc_dri3_get_supported_modifiers(ClientPtr client)
     pScreen = window->drawable.pScreen;
 
     dri3_get_supported_modifiers(pScreen, &window->drawable,
-                                 stuff->depth, stuff->bpp,
+                                 client->latch_is_set ? client->latched_depth : stuff->depth, client->latch_is_set ?  client->latched_bpp :stuff->bpp,
                                  &nwindowmodifiers, &window_modifiers,
                                  &nscreenmodifiers, &screen_modifiers);
 
@@ -477,7 +477,7 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
                               stuff->num_buffers, fds,
                               stuff->width, stuff->height,
                               strides, offsets,
-                              stuff->depth, stuff->bpp,
+                              stuff->depth, client->latch_is_set ? client->latched_bpp  : stuff->bpp,
                               stuff->modifier);
 
     for (i = 0; i < stuff->num_buffers; i++)

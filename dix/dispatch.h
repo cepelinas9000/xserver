@@ -152,19 +152,12 @@ int ProcUnmapWindow(ClientPtr /* client */ );
 /**
  * @brief ProcLatchVisual Latch visual id and depth for any window queries
  * IT is necessary for maitaining "maximum" compability for HDR until found better method,
- * as by default vulkan creates surface visual blindly copying from parent window (or screen) assuming it always supoort 32 bit,24 bit something
- * It is implemented using xCreateWindowReq call into 125 function
+ * as by default vulkan creates surface visual blindly copying from parent window (or screen) assuming it always screen buffer 32 bit,24 bit something
+ * It is implemented using xCreateWindowReq call into 125 function with depth and visualid set. If these are zero - unlatches
  * @return BadMatch if depth & Visual not exis
  */
-int XXXProcLatchVisual(ClientPtr /* client */ );
+int XXXProcLatchUnlatchVisual(ClientPtr /* client */ );
 
-/**
- * @brief ProcUnlatchVisual restore normal behaviour
- * @return BadAccess if there where not latch othervise generic event with all zeros
- * Call xCreateWindowReq call to 126 function
-
- */
-int XXXProcUnlatchVisual(ClientPtr /* client */ );
 
 /** @} */
 #endif                          /* DISPATCH_H */

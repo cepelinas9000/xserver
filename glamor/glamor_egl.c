@@ -637,9 +637,21 @@ glamor_egl_fd_name_from_pixmap(ScreenPtr screen,
     return fd;
 }
 
+/// XXX TODO:  these format_for_depth need refactor !!!!
 static bool
-gbm_format_for_depth(CARD8 depth, uint32_t *format)
+gbm_format_for_depth(CARD8 depth,CARD8 bpp, uint32_t *format)
 {
+    if (depth == 32 && bpp == 10){
+     *format = GBM_FORMAT_ABGR2101010;
+     return true;
+
+    }
+
+    if (depth == 64 && bpp == 16){
+     *format = GBM_FORMAT_ABGR16161616F;
+     return true;
+    }
+
     switch (depth) {
     case 15:
         *format = GBM_FORMAT_ARGB1555;
@@ -678,7 +690,7 @@ glamor_back_pixmap_from_fd(PixmapPtr pixmap,
 
     glamor_egl = glamor_egl_get_screen_private(scrn);
 
-    if (!gbm_format_for_depth(depth, &import_data.format) ||
+    if (!gbm_format_for_depth(depth,bpp, &import_data.format) ||
         width == 0 || height == 0)
         return FALSE;
 
@@ -720,7 +732,7 @@ glamor_pixmap_from_fds(ScreenPtr screen,
         struct gbm_import_fd_modifier_data import_data = { 0 };
         struct gbm_bo *bo;
 
-        if (!gbm_format_for_depth(depth, &import_data.format) ||
+        if (!gbm_format_for_depth(depth,bpp, &import_data.format) ||
             width == 0 || height == 0)
             goto error;
 

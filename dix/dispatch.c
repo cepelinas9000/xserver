@@ -1102,50 +1102,70 @@ ProcQueryTree(ClientPtr client)
     return X_SEND_REPLY_WITH_RPCBUF(client, reply, rpcbuf);
 }
 
-/** @{ */
-int
-XXXProcLatchVisual(ClientPtr client){
+/** @brief Latches
+ *   @{ */
+
+/* I keep it here
+
+void latch_visual(xcb_connection_t *conn, xcb_visualid_t visual, uint8_t depth){
 
 
-    REQUEST(xCreateWindowReq);
-    REQUEST_SIZE_MATCH(xCreateWindowReq);
+  xcb_protocol_request_t proto_req = {
+        .count = 1,
+        .ext = NULL,
+        .opcode = 125,
+        .isvoid = 1
+    };
 
-    if (client->latch_is_set){
-      return BadAccess;
-    }
+    uint32_t buffer[8]; // remainder after req is 7 CARD32 words
+    memset(buffer,0,sizeof(buffer));
 
-    xGenericReply reply = { 0};
-    reply.data05 = 0x55aa55aa;
+    buffer[0] = ((uint32_t)depth) << 8;
+    buffer[1] = 0x55aa55aa ; // wid field
+    buffer[2] = 0xffffffff; // parent field
+    buffer[6] = visual; // visual field
 
-    client->latch_is_set = true;
-    client->latched_depth = stuff->depth;
-    client->latched_visualid = stuff->visual;
+   struct iovec vec[1] = { { .iov_base = buffer, .iov_len = sizeof(buffer)} };
+   xcb_send_request(conn, 0, vec, &proto_req);
 
-    return X_SEND_REPLY_SIMPLE(client, reply);
 }
 
 
+*/
+
 int
-XXXProcUnlatchVisual(ClientPtr client){
+XXXProcLatchUnlatchVisual(ClientPtr client){ /* opcode 125 */
+
 
     REQUEST(xCreateWindowReq);
     REQUEST_SIZE_MATCH(xCreateWindowReq);
 
-    if (!client->latch_is_set){
-      return BadAccess;
+    if (stuff->wid != 0x55aa55aa || stuff->parent != 0xffffffff){
+      return BadMatch;
     }
 
-    client->latch_is_set = false;
+    if (stuff->depth == 0 && stuff->visual == 0){ /* unlatching */
+        if (!client->latch_is_set){
+            return BadAccess;
+        }
+        client->latch_is_set = false;
+    } else {
 
+        if (client->latch_is_set){
+            return BadAccess;
+        }
 
-    client->latched_depth = stuff->depth;
-    client->latched_visualid = stuff->visual;
+        if (stuff->depth == 0 || stuff->visual == 0) {
+            return BadMatch;
+        }
 
-    xGenericReply reply = { 0};
-    reply.data05 = 0xaa55aa55;
+        client->latch_is_set = true;
+        client->latched_depth = stuff->depth;
+        client->latched_visualid = stuff->visual;
+        client->latched_bpp  = stuff->mask;
+    }
 
-    return X_SEND_REPLY_SIMPLE(client, reply);
-
+    return Success;
 }
 
 

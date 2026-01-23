@@ -53,7 +53,7 @@ SOFTWARE.
 
 #define DynamicClass  1
 
-#define HDRColor 7
+#define HDRColor 6
 
 typedef CARD32 Pixel;
 
