@@ -817,6 +817,7 @@ if build_namespace
     libxserver += libxserver_namespace
 endif
 
+subdir('miext/hdrext')
 subdir('hw')
 
 build_tests = get_option('tests') and host_machine.system() != 'windows'

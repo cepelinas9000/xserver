@@ -11,3 +11,4 @@ libxserver_miext_rootless = static_library('xserver_miext_rootless',
         include_directories: inc,
         dependencies: common_dep,
 )
+
