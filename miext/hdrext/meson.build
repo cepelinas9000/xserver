@@ -3,7 +3,7 @@ srcs_hdrext = [
 	'applyvulkanproperties.c'
 ]
 
-hdrs_hdrext = [
+headers_hdrext = [
 	'hdrext.h',
 	'hdrproto.h',
 	'applyvulkanproperties.h'
@@ -12,7 +12,7 @@ hdrs_hdrext = [
 vulkan_dep = dependency('vulkan',version : '>=1.3.283')
 
 libxserver_hdrext = static_library('xserver_hdrext',
-	srcs_hdrext,
+        srcs_hdrext,
 	include_directories: inc,
 	dependencies: common_dep,
 )

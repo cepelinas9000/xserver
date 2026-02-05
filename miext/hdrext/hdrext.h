@@ -22,15 +22,22 @@ typedef struct HDR_vulkan_struct_header_packed {
     union {
         uint64_t pVoid;
         struct {
-            uint16_t  struct_flags  :16;
-            uint32_t  total_size    :24;
-            uint32_t  current_size  :24;
+            uint16_t  struct_flags;
+            union {
+                uint8_t   total_size_f[3];
+                uint32_t  total_size    :24;
+            };
+
+            union {
+                uint8_t   current_size_f[3];
+                uint32_t  current_size    :24;
+            };
+
         } __attribute__((packed));
     };
 
     uint64_t data[0];
 }  __attribute__((packed)) HDR_vulkan_struct_header_pakced;
-
 
 
 /**

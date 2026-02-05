@@ -3,6 +3,10 @@ hdr_simple_dep_tests = [
     'test_applyvulkanproperties.c',
 ]
 
+#there are "independent" tests
+hdr_independent_tests = [
+    'test_calls.c'
+]
 
 criterion_dep = dependency('criterion')
 
