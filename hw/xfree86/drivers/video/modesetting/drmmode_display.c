@@ -59,6 +59,8 @@
 
 #include "driver.h"
 
+#include "hdrext/hdrext.h"
+
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
@@ -1854,7 +1856,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
         for (i = 0; i < xf86_config->num_output; i++) {
             xf86OutputPtr output = xf86_config->output[i];
             if (crtc->scrn->hdr_mode != SCREEN_HDR_MODE_OFF){
-                    drmmode_crtc_set_colorimetry(output,true);
+                    drmmode_crtc_set_colorimetry(output,true,crtc->scrn->pScreen,i);
             }
         }
 
@@ -5152,7 +5154,7 @@ void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_
 
 }
 
-bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable){
+bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable, ScreenPtr screen, int crtc_num){
 
     if (output->MonInfo == NULL){
         return false;
@@ -5200,6 +5202,7 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable){
 
     if (is_CTA_CDB_BT2020_RGB(output->MonInfo->hdr.colorimetry_profiles)){
         drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,enable ? colorspace_bt2020_rgb_e : colorspace_default);
+
     } else if(enable == false){
         drmModeObjectSetProperty(drmmode->fd,drmmode_output->mode_output->connector_id,DRM_MODE_OBJECT_CONNECTOR,colorspace_id,colorspace_default);
 
@@ -5249,9 +5252,31 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable){
 
         drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,&meta);
 
+        hdr_color_attributes hc;
+        memset(&hc,0,sizeof(hc));
+
+        /* XXX:¯\_(ツ)_/¯ ... */
+        hc.color_r[0] = output->MonInfo->features.redx;
+        hc.color_r[1] = output->MonInfo->features.redy;
+
+        hc.color_g[0] = output->MonInfo->features.greenx;
+        hc.color_g[1] = output->MonInfo->features.greeny;
+
+
+        hc.color_b[0] = output->MonInfo->features.bluex;
+        hc.color_b[1] = output->MonInfo->features.bluey;
+
+        hc.white_point[0] = output->MonInfo->features.whitex;
+        hc.white_point[1] = output->MonInfo->features.whitey;
+
+        hc.max_britness_nits = output->MonInfo->hdr.desired_content_max_luminance;
+
+        HdrSetColorMatrix(screen,crtc_num,&hc);
+
     } else {
         drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,NULL);
     }
+
 
     return true;
 }

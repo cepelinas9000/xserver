@@ -42,6 +42,8 @@
 #include "glamor_priv.h"
 #include "mipict.h"
 
+#include "hdrext/hdrext.h"
+
 DevPrivateKeyRec glamor_screen_private_key;
 DevPrivateKeyRec glamor_pixmap_private_key;
 DevPrivateKeyRec glamor_gc_private_key;
@@ -909,6 +911,9 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 
     dixScreenHookClose(screen, glamor_close_screen);
     dixScreenHookPixmapDestroy(screen, glamor_pixmap_destroy);
+
+
+    HDRExtensionInit(screen);
 
     return TRUE;
 

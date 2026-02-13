@@ -63,5 +63,5 @@ void dri3_extension_init(void);
 void PseudoramiXExtensionInit(void);
 void present_extension_init(void);
 void NamespaceExtensionInit(void);
-
+void HDRExtensionInit(void);
 #endif /* _XSERVER_EXTINIT_PRIV_H */

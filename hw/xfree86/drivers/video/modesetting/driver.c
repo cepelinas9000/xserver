@@ -2322,7 +2322,7 @@ LeaveVT(ScrnInfoPtr pScrn)
     for (size_t i = 0; i < xf86_config->num_output; i++) {
         xf86OutputPtr output = xf86_config->output[i];
         if (pScrn->hdr_mode != SCREEN_HDR_MODE_OFF){
-            drmmode_crtc_set_colorimetry(output,false);
+            drmmode_crtc_set_colorimetry(output,false, pScrn->pScreen ,i);
         }
     }
 

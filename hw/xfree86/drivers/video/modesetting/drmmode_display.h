@@ -426,6 +426,6 @@ void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_
  * @param drmmode_output
  * @return false if false on failure
  */
-bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable);
+bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable, ScreenPtr screen,int crtc_num);
 
 #endif

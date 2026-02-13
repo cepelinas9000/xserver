@@ -54,8 +54,9 @@ typedef void (*XorgScreenWindowDestroyProcPtr)(CallbackListPtr *pcbl,
  * ever setting it.
  *
  * When registration fails, the server aborts.
- *
+ * @note: _X_EXPORT for HDR
  **/
+_X_EXPORT
 void dixScreenHookWindowDestroy(ScreenPtr pScreen,
                                 XorgScreenWindowDestroyProcPtr func);
 
@@ -69,7 +70,9 @@ void dixScreenHookWindowDestroy(ScreenPtr pScreen,
  * @see dixScreenHookWindowDestroy
  *
  * Unregister a window destructor hook registered via @ref dixScreenHookWindowDestroy
+ * @note: _X_EXPORT for HDR
  **/
+_X_EXPORT
 void dixScreenUnhookWindowDestroy(ScreenPtr pScreen,
                                   XorgScreenWindowDestroyProcPtr func);
 
@@ -248,5 +251,7 @@ void dixScreenHookPostCreateResources(ScreenPtr pScreen,
 _X_EXPORT
 void dixScreenUnhookPostCreateResources(ScreenPtr pScreen,
                                         XorgScreenPostCreateResourcesProcPtr func);
+
+
 
 #endif /* DIX_SCREEN_HOOKS_H */
