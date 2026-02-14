@@ -18,6 +18,7 @@ void FreeHDRScreenPrivateData(HDRScreenPrivateData *priv){
   free(priv);
 
 }
+
 void InitializeScreenShaders(ScreenPtr pScreen){
 
 
@@ -32,6 +33,7 @@ void InitializeScreenShaders(ScreenPtr pScreen){
 
 
   priv = calloc(1,sizeof(HDRScreenPrivateData));
+  dixSetPrivate(&pScreen->devPrivates,HdrScrPrivateKey,priv);
 
   HDR_SDRPARAMS_uniform_t_init(&priv->default_sdr_params);
 

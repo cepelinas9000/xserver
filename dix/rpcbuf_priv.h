@@ -80,7 +80,9 @@ void x_rpcbuf_reset(x_rpcbuf_t *rpcbuf)
  * @param rpcbuf    pointer to x_rpcbuf_t to operate on
  * @param needed    amount of bytes needed
  * @return          pointer to reserved region of NULL on allocation failure
+ * XXX: for hdr
  */
+_X_EXPORT
 void *x_rpcbuf_reserve(x_rpcbuf_t *rpcbuf, size_t needed)
     _X_ATTRIBUTE_NONNULL_ARG(1);
 

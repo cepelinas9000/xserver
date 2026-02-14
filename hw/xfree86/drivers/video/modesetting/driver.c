@@ -1052,7 +1052,7 @@ load_glamor(ScrnInfoPtr pScrn)
     ms->glamor.supports_pixmap_import_export = LoaderSymbolFromModule(mod, "glamor_supports_pixmap_import_export");
     ms->glamor.xv_init = LoaderSymbolFromModule(mod, "glamor_xv_init");
     ms->glamor.egl_get_driver_name = LoaderSymbolFromModule(mod, "glamor_egl_get_driver_name");
-
+    ms->glamor.HdrSetColorMatrix = LoaderSymbolFromModule(mod,"HdrSetColorMatrix");
     return TRUE;
 }
 

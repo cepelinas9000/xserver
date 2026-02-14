@@ -5165,8 +5165,6 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable, ScreenPtr s
     }
 
 
-
-
     drmmode_output_private_ptr drmmode_output = (drmmode_output_private_ptr)output->driver_private;
 
     /* XXX: need refactor this */
@@ -5270,8 +5268,10 @@ bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable, ScreenPtr s
         hc.white_point[1] = output->MonInfo->features.whitey;
 
         hc.max_britness_nits = output->MonInfo->hdr.desired_content_max_luminance;
+        
+	modesettingPtr ms = modesettingPTR(output->scrn);
+        ms->glamor.HdrSetColorMatrix(screen,crtc_num,&hc);
 
-        HdrSetColorMatrix(screen,crtc_num,&hc);
 
     } else {
         drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output,NULL);

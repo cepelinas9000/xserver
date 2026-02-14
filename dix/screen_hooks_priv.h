@@ -177,7 +177,10 @@ void dixScreenHookPostClose(ScreenPtr pScreen,
  *
  * In contrast to Close hook, it's called *after* the driver's CloseScreen()
  * proc had been called.
+ *
+ * XXX: exported for hdr
  **/
+_X_EXPORT
 void dixScreenUnhookPostClose(ScreenPtr pScreen,
                               XorgScreenCloseProcPtr func);
 

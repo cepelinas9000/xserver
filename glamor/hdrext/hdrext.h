@@ -66,6 +66,7 @@ void HDRExtensionInit(ScreenPtr pScreen);
  * @param pScreen
  * @param hdr_color_attrs
  */
+_X_EXPORT
 void HdrSetColorMatrix(ScreenPtr pScreen,int crtnum,hdr_color_attributes *hdr_color_attrs);
 
 #endif

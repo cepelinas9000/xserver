@@ -66,7 +66,7 @@ void HDRutil_BT2020_matrix_colorspace(hdr_color_attributes *target_colorspace, f
   mat3 src_to_xyz,dst_to_xyz,dst_to_xyzInv;
 
   get_rgb_to_xyz_matrix(BT2020_PRIMARIES[0],BT2020_PRIMARIES[1],BT2020_PRIMARIES[2],BT2020_PRIMARIES[3],src_to_xyz);
-  get_rgb_to_xyz_matrix(target_colorspace->color_r,target_colorspace->color_g,target_colorspace->color_b,target_colorspace->white_point,src_to_xyz);
+  get_rgb_to_xyz_matrix(target_colorspace->color_r,target_colorspace->color_g,target_colorspace->color_b,target_colorspace->white_point,dst_to_xyz);
 
 
   mat3 m3conv;
