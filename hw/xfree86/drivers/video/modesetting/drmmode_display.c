@@ -1212,6 +1212,24 @@ drmmode_get_depth_for_hdr(ScreenHDRMode hdr_mode){
         break;
     }
 }
+
+static inline int
+drmmode_get_kpp_for_hdr(ScreenHDRMode hdr_mode){
+    switch (hdr_mode) {
+        case SCREEN_HDR_MODE_10i:
+            return 32;
+        case SCREEN_HDR_MODE_16f:
+            return 64;
+        case SCREEN_HDR_MODE_32f:
+            return 128;
+        case SCREEN_HDR_MODE_64f:
+            return 256;
+        default:
+          abort();
+        break;
+    }
+}
+
 #endif
 
 static Bool
@@ -2415,7 +2433,7 @@ drmmode_shadow_fb_create(xf86CrtcPtr crtc, void *data, int width, int height,
     pixmap = drmmode_create_pixmap_header(scrn->pScreen,
                                           width, height,
                                           scrn->hdr_mode != SCREEN_HDR_MODE_OFF ? drmmode_get_depth_for_hdr(scrn->hdr_mode) : scrn->depth,
-                                          drmmode->kbpp,
+                                          scrn->hdr_mode != SCREEN_HDR_MODE_OFF ? drmmode_get_kpp_for_hdr(scrn->hdr_mode) : drmmode->kbpp,
                                           pitch,
                                           pPixData);
 
