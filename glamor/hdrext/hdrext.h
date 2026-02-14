@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "pixmap.h"
+
 /**
  * Wrapped (decoded) vulkan structure header from ListOfVULKANSTRUCTCHAIN
  */
@@ -68,6 +70,12 @@ void HDRExtensionInit(ScreenPtr pScreen);
  */
 _X_EXPORT
 void HdrSetColorMatrix(ScreenPtr pScreen,int crtnum,hdr_color_attributes *hdr_color_attrs);
+
+_X_EXPORT
+void HdrFlagPixmap_CRT(PixmapPtr pixmap);
+
+_X_EXPORT
+void HdrFlagPixmap_INTERMEDIATE(PixmapPtr pixmap);
 
 #endif
 

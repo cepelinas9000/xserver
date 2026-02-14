@@ -1053,6 +1053,9 @@ load_glamor(ScrnInfoPtr pScrn)
     ms->glamor.xv_init = LoaderSymbolFromModule(mod, "glamor_xv_init");
     ms->glamor.egl_get_driver_name = LoaderSymbolFromModule(mod, "glamor_egl_get_driver_name");
     ms->glamor.HdrSetColorMatrix = LoaderSymbolFromModule(mod,"HdrSetColorMatrix");
+    ms->glamor.HdrFlagPixmap_CRT = LoaderSymbolFromModule(mod,"HdrFlagPixmap_CRT");
+    ms->glamor.HdrFlagPixmap_INTERMEDIATE= LoaderSymbolFromModule(mod,"HdrFlagPixmap_INTERMEDIATE");
+
     return TRUE;
 }
 

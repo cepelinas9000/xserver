@@ -6,6 +6,8 @@
 
 #include "screenint.h"
 
+#include "hdrext.h"
+
 
 #include "glamor_priv.h"
 
@@ -29,6 +31,19 @@ typedef enum {
     HDR_impl_passthough = 3,
 } HDR_impl_tf;
 
+typedef enum {
+    HDR_colorspace_sRGB = 0,
+    HDR_colorspace_BT2020,
+    HDR_colorspace_custom,
+} HDR_colorspace;
+
+typedef enum {
+    HDR_pixmap_SDR = 0, /* struct is empty */
+    HDR_pixmap_HDR, /* it is marker for known pixmap */
+    HDR_pixmap_crt, /* this is CRT pixmap - last pixmap on pipeline */
+    HDR_pixmap_intermiate, /* intermiadate pixmap  - screen buffer pixmap */
+
+} HDR_pixmap_purpose;
 
 /**
  * @warning: keep same structure as in shader 
@@ -41,7 +56,7 @@ typedef struct {
     float u_brightness;     // typically -1.0 to 1.0, 0.0 = no change
     float u_gamma;          // gamma correction factor
     
-    float pad1,pad2
+    float pad1,pad2;
 
 } HDR_SDRPARAMS_uniform_t;
 
@@ -52,6 +67,15 @@ typedef struct {
 
 
 } HDRExtWindowPrivate;
+
+typedef struct {
+
+    HDR_pixmap_purpose purpose;
+    HDR_impl_tf tf;
+    HDR_colorspace colorspace;
+    hdr_color_attributes colorspace_points;
+
+} HDRPixmapPrivate;
 
 
 static inline void HDR_SDRPARAMS_uniform_t_init(HDR_SDRPARAMS_uniform_t *s){

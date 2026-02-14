@@ -183,7 +183,7 @@ HDRExtensionSetup(ScreenPtr pScreen)
         dixSetPrivate(&pScreen->devPrivates,HdrScrPrivateKey,NULL);
      }
 
-    if (!dixRegisterPrivateKey(&HdrPixPrivateKeyRec, PRIVATE_PIXMAP, 0))
+    if (!dixRegisterPrivateKey(&HdrPixPrivateKeyRec, PRIVATE_PIXMAP, sizeof(HDRPixmapPrivate)))
         return FALSE;
 
 
@@ -232,4 +232,18 @@ void HdrSetColorMatrix(ScreenPtr pScreen,int crtnum, hdr_color_attributes *hdr_c
   glBufferData(GL_UNIFORM_BUFFER, sizeof(m), m, GL_STATIC_DRAW);
 
 
+}
+
+void HdrFlagPixmap_CRT(PixmapPtr pixmap)
+{
+  HDRPixmapPrivate *priv = dixLookupPrivate(&pixmap->devPrivates, HdrPixPrivateKey);
+  priv->purpose = HDR_pixmap_crt;
+
+
+}
+
+void HdrFlagPixmap_INTERMEDIATE(PixmapPtr pixmap)
+{
+  HDRPixmapPrivate *priv = dixLookupPrivate(&pixmap->devPrivates, HdrPixPrivateKey);
+  priv->purpose = HDR_pixmap_intermiate;
 }

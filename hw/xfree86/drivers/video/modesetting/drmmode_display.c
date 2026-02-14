@@ -1196,6 +1196,22 @@ drmmode_gbm_format_for_hdr(ScreenHDRMode hdr_mode)
     }
 }
 
+static inline int
+drmmode_get_depth_for_hdr(ScreenHDRMode hdr_mode){
+    switch (hdr_mode) {
+        case SCREEN_HDR_MODE_10i:
+            return 30;
+        case SCREEN_HDR_MODE_16f:
+            return 64;
+        case SCREEN_HDR_MODE_32f:
+            return 128;
+        case SCREEN_HDR_MODE_64f:
+            return 256;
+        default:
+          abort();
+        break;
+    }
+}
 #endif
 
 static Bool
@@ -2395,9 +2411,10 @@ drmmode_shadow_fb_create(xf86CrtcPtr crtc, void *data, int width, int height,
     pPixData = drmmode_bo_map(drmmode, bo);
     pitch = drmmode_bo_get_pitch(bo);
 
+    /* cepelinas9000: (not 100% sure) to push pixels on scren, depth doesn't matter - it will be converted automatically. */
     pixmap = drmmode_create_pixmap_header(scrn->pScreen,
                                           width, height,
-                                          scrn->depth,
+                                          scrn->hdr_mode != SCREEN_HDR_MODE_OFF ? drmmode_get_depth_for_hdr(scrn->hdr_mode) : scrn->depth,
                                           drmmode->kbpp,
                                           pitch,
                                           pPixData);
@@ -2407,6 +2424,9 @@ drmmode_shadow_fb_create(xf86CrtcPtr crtc, void *data, int width, int height,
                    "Couldn't allocate shadow pixmap for CRTC\n");
         return NULL;
     }
+
+    modesettingPtr ms = modesettingPTR(crtc->scrn);
+    ms->glamor.HdrFlagPixmap_CRT(pixmap);
 
     drmmode_set_pixmap_bo(drmmode, pixmap, bo);
 
