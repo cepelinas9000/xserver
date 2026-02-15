@@ -281,4 +281,21 @@ void ms_window_update_async_flip(WindowPtr win, Bool async_flip);
 Bool ms_window_has_async_flip_modifiers(WindowPtr win);
 void ms_window_update_async_flip_modifiers(WindowPtr win, Bool async_flip);
 
+static inline int
+drmmode_get_depth_for_hdr(ScreenHDRMode hdr_mode){
+    switch (hdr_mode) {
+    case SCREEN_HDR_MODE_10i:
+        return 30;
+    case SCREEN_HDR_MODE_16f:
+        return 64;
+    case SCREEN_HDR_MODE_32f:
+        return 128;
+    case SCREEN_HDR_MODE_64f:
+        return 256;
+    default:
+        abort();
+        break;
+    }
+}
+
 #endif /* XSERVER_XFREE86_DRIVER_H */

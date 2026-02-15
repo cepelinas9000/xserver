@@ -77,6 +77,8 @@
 
 #include "driver.h"
 
+#include "servermd.h"
+
 static void AdjustFrame(ScrnInfoPtr pScrn, int x, int y);
 static Bool CloseScreen(ScreenPtr pScreen);
 static Bool EnterVT(ScrnInfoPtr pScrn);
@@ -1735,8 +1737,24 @@ modesetCreateScreenResources(ScreenPtr pScreen)
             return FALSE;
     }
 
-    rootPixmap = pScreen->GetScreenPixmap(pScreen);
 
+    if (pScrn->hdr_mode !=SCREEN_HDR_MODE_OFF){
+        /* this is bold copy of what `miCreateScreenResources contains without error checking.
+         * Replace pixmap acording HDR mode and mark it as intermediate (BT2020 linear colorspace)*/
+        pScreen->DestroyPixmap(pScreen->GetScreenPixmap(pScreen));
+        rootPixmap = pScreen->CreatePixmap(pScreen, 0, 0, drmmode_get_depth_for_hdr(pScrn->hdr_mode), 0);
+
+        pScreen->ModifyPixmapHeader(rootPixmap,pScreen->width,
+                                               pScreen->height,-1,
+                                               drmmode_get_depth_for_hdr(pScrn->hdr_mode),
+                                               PixmapBytePad(pScreen->width, drmmode_get_depth_for_hdr(pScrn->hdr_mode))
+                                               ,NULL);
+
+        pScreen->SetScreenPixmap(rootPixmap);
+
+    } else {
+        rootPixmap = pScreen->GetScreenPixmap(pScreen);
+    }
     if (ms->drmmode.shadow_enable)
         pixels = ms->drmmode.shadow_fb;
 
