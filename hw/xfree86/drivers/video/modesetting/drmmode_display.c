@@ -2428,8 +2428,11 @@ drmmode_shadow_fb_create(xf86CrtcPtr crtc, void *data, int width, int height,
         return NULL;
     }
 
+
+
+
     modesettingPtr ms = modesettingPTR(crtc->scrn);
-    ms->glamor.HdrFlagPixmap_CRT(pixmap);
+    ms->glamor.HdrFlagPixmap_CRT(pixmap,1); /* XXX: !!! i have same model monitors ... */
 
     drmmode_set_pixmap_bo(drmmode, pixmap, bo);
 

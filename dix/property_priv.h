@@ -94,6 +94,7 @@ typedef struct _PropertyFilterParam {
 
 extern CallbackListPtr PropertyFilterCallback;
 
+_X_EXPORT
 int dixLookupProperty(PropertyPtr *result, WindowPtr pWin, Atom proprty,
                       ClientPtr pClient, Mask access_mode);
 

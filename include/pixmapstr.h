@@ -84,8 +84,6 @@ typedef struct _Pixmap {
 
     PixmapPtr primary_pixmap;    /* pointer to primary copy of pixmap for pixmap sharing */
 
-    uint64_t counter1;
-    uint64_t counter2;
 } PixmapRec;
 
 

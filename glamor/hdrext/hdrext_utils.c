@@ -1,7 +1,13 @@
+#include "dix-config.h"
+
+#include "hdrext_priv.h"
+
 #include "hdrext_utils.h"
 
 #include "cglm/mat3.h"
 
+
+#include "os/fmt.h"
 
 
 static const float BT2020_PRIMARIES[4][2] = {
@@ -81,3 +87,125 @@ void HDRutil_BT2020_matrix_colorspace(hdr_color_attributes *target_colorspace, f
 
 
 }
+
+static inline void
+_hdr_string_update_param_from_default(HDR_SDRPARAMS_uniform_t *u,int number,HDR_SDRPARAMS_uniform_t *d){
+    switch (number) {
+        case 0:
+            u->u_whitepoint_ref  = d->u_whitepoint_ref;
+        break;
+        case 1:
+            u->u_contrast  = d->u_contrast;
+        break;
+        case 2:
+            u->u_saturation  = d->u_saturation;
+        break;
+        case 3:
+            u->u_hue  = d->u_hue;
+        break;
+        case 4:
+            u->u_brightness  = d->u_brightness;
+        break;
+
+        case 5:
+            u->u_gamma = d->u_gamma;
+        break;
+    default:
+        break;
+    }
+
+}
+static inline bool
+_hdr_string_update_param(HDR_SDRPARAMS_uniform_t *u,int number,float val){
+
+    switch (number) {
+        case 0: /* XXX: maybe limit by display ? */
+            if (val < 0 || val > 10000){
+              return false;
+            }
+            u->u_whitepoint_ref  = val;
+        break;
+        case 1:
+            if (val < 0 || val > 2){
+                return false;
+            }
+            u->u_contrast  = val;
+        break;
+        case 2:
+            if (val < 0 || val > 2){
+                return false;
+            }
+            u->u_saturation  = val;
+        break;
+        case 3:
+            if (val < 0 || val > 2*M_PI){
+                return false;
+            }
+            u->u_hue  = val;
+        break;
+
+        case 4:
+            if (val < -1.0 || val > 1.0){
+                return false;
+            }
+            u->u_brightness  = val;
+        break;
+
+        case 5:
+            u->u_gamma = val;
+        break;
+
+    default:
+        return false;
+        break;
+    }
+    return true;
+
+}
+
+bool HDR_parseSDRParams_parsePropertyStr(const char *input, HDR_SDRPARAMS_uniform_t *defaults,HDR_SDRPARAMS_uniform_t *inout){
+
+    HDR_SDRPARAMS_uniform_t old = *inout;
+
+    char **token = xstrtokenize(input, ",");
+
+    bool all_ok = true;
+    int num_tokens = 0;
+
+    if (!token) {
+        all_ok =false;
+    } else {
+       for (; token[num_tokens]; num_tokens++) {
+
+          char *endptr = NULL;
+          float val = strtof(token[num_tokens],&endptr);
+          if (endptr[0] != '\0'){
+              //all_ok = false;
+              if (strcmp(token[num_tokens],"default") == 0){
+                _hdr_string_update_param_from_default(inout,num_tokens,defaults);
+              } else if (strcmp(token[num_tokens],"*") == 0){
+
+              } else {
+                  all_ok = false;
+              }
+          } else {
+           all_ok &= _hdr_string_update_param(inout,num_tokens,val);
+          }
+          free(token[num_tokens]);
+      }
+    }
+
+    if (num_tokens != 6) {
+        all_ok = false;
+    }
+
+    if (!all_ok){
+      memcpy(inout,&old,sizeof(old));
+
+      return false;
+    }
+
+
+  return all_ok;
+}
+

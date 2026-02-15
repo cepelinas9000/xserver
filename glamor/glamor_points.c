@@ -39,14 +39,16 @@ static const glamor_facet glamor_facet_point = {
                 GLAMOR_POS(gl_Position, primitive)),
 };
 
+
+
 static Bool
 glamor_poly_point_gl(DrawablePtr drawable, GCPtr gc, int mode, int npt, DDXPointPtr ppt)
 {
     ScreenPtr screen = drawable->pScreen;
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     PixmapPtr pixmap = glamor_get_drawable_pixmap(drawable);
-    glamor_program *prog = &glamor_priv->point_prog;
     glamor_pixmap_private *pixmap_priv;
+    glamor_program *prog;
     int off_x, off_y;
     GLshort *vbo_ppt;
     char *vbo_offset;
@@ -58,6 +60,9 @@ glamor_poly_point_gl(DrawablePtr drawable, GCPtr gc, int mode, int npt, DDXPoint
         goto bail;
 
     glamor_make_current(glamor_priv);
+
+     prog = &glamor_priv->point_prog;
+
 
     if (prog->failed)
         goto bail;

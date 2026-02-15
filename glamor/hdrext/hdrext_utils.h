@@ -15,6 +15,8 @@
 
 void HDRutil_BT2020_matrix_colorspace(hdr_color_attributes *target_colorspace, float conv_matrix[3][3]);
 
+
+
 /** @} */
 
 #endif

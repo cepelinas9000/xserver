@@ -18,9 +18,27 @@
 #include "hdrext_priv.h"
 #include "hdrext_utils.h"
 
+#include "dix_priv.h"
+#include "property_priv.h"
+
+#include "xacestr.h"
+#include "xace.h"
+#include "Xext/namespace/hooks.h"
+
+#include "propertyst.h"
+
+#include <X11/Xatom.h>
+
+#include "os/fmt.h"
+
+#include "namespace/namespace.h"
+
 DevPrivateKeyRec HdrScrPrivateKeyRec;
 DevPrivateKeyRec HdrPixPrivateKeyRec;
 DevPrivateKeyRec HdrWinPrivateKeyRec;
+
+
+Atom HDR__X11HDR_SDR_PARAMS_atom;
 
 
 static int
@@ -163,6 +181,16 @@ static void
 HDRWindowDestroy(CallbackListPtr *pcbl, ScreenPtr pScreen, WindowPtr pWindow)
 {
 
+    HDRExtWindowPrivate *priv = dixLookupPrivate(&pWindow->devPrivates, HdrWinPrivateKey);
+
+    if (priv->sdr_params_u){
+
+        glamor_screen_private *glamor_priv = glamor_get_screen_private(pScreen);
+        glamor_make_current(glamor_priv);
+        glDeleteBuffers(1,&priv->sdr_params_u);
+    }
+
+
 }
 
 static void
@@ -170,6 +198,64 @@ HDRPixmapDestroy(CallbackListPtr *pcbl, ScreenPtr pScreen, PixmapPtr pPixmap)
 {
 
 }
+
+
+/**
+ * @brief Hook_HDR_property_filter it only checks if HDR__X11HDR_SDR_PARAMS_atom have correct structure
+ * @param pcbl
+ * @param unused
+ * @param calldata
+ */
+static void
+Hook_HDR_property_filter(CallbackListPtr *pcbl, void *unused, void *calldata){
+
+
+    XacePropertyAccessRec *param = (XacePropertyAccessRec*)(calldata);
+
+    if ( (*param->ppProp)->propertyName != HDR__X11HDR_SDR_PARAMS_atom ){
+        return;
+    }
+
+    if (param->access_mode == DixReadAccess){
+      return;
+    }
+
+    if ( (*param->ppProp)->type != XA_STRING){
+        param->status = BadAccess;
+        return;
+    }
+
+    /* there is "default" (inherits from root window) value and string with 6 fp numbers "u_whitepoint_ref,u_contrast,u_saturation,u_hue,u_brightness,u_gamma" */
+
+    HDRScreenPrivateData *priv_screen = dixLookupPrivate(&param->pWin->drawable.pScreen->devPrivates, HdrScrPrivateKey);
+
+
+    char *val = (char *)(param->ppProp[0]->data);
+
+    if (strcmp(val,"default") == 0 ){
+
+
+      free(param->ppProp[0]->data);
+
+      param->ppProp[0]->data = HDR_SDRPARAMS_uniform_t_str(&priv_screen->default_sdr_params);
+      param->ppProp[0]->size = strlen(param->ppProp[0]->data) + 1;
+    }
+
+    HDR_SDRPARAMS_uniform_t sdr_params;
+    memset(&sdr_params,0,sizeof(sdr_params));
+
+
+  bool ret = HDR_parseSDRParams_parsePropertyStr(param->ppProp[0]->data,&priv_screen->default_sdr_params,&sdr_params);
+
+  if (ret == false){
+        param->status = BadAccess;
+        return;
+  }
+
+  hdr_WindowUpdateSDRParams(param->pWin->drawable.pScreen,param->pWin,&sdr_params);
+}
+
+
 
 static bool
 HDRExtensionSetup(ScreenPtr pScreen)
@@ -187,15 +273,20 @@ HDRExtensionSetup(ScreenPtr pScreen)
         return FALSE;
 
 
-    if (!dixRegisterPrivateKey(&HdrWinPrivateKeyRec, PRIVATE_WINDOW, 0))
+    if (!dixRegisterPrivateKey(&HdrWinPrivateKeyRec, PRIVATE_WINDOW, sizeof(HDRExtWindowPrivate)))
         return FALSE;
+
+
+    HDR__X11HDR_SDR_PARAMS_atom = dixAddAtom("__X11HDR_SDR_PARAMS");
+
+
 
 
     dixScreenHookClose(pScreen, HDRCloseScreen);
     dixScreenHookWindowDestroy(pScreen, HDRWindowDestroy);
     dixScreenHookPixmapDestroy(pScreen, HDRPixmapDestroy);
 
-
+    XaceRegisterCallback(XACE_PROPERTY_ACCESS,Hook_HDR_property_filter,NULL); /* XXX: it should be callback like in RR for property update */
 
     InitializeScreenShaders(pScreen);
 
@@ -208,36 +299,72 @@ HDRExtensionInit(ScreenPtr pScreen){
 
     HDRExtensionSetup(pScreen);
 
-
     AddExtension(HDREXT_NAME, 0, 0,
                  ProcHDRDispatch, ProcHDRDispatch,
                  NULL, StandardMinorOpcode);
 
+
+    /* XXX: investigate why we setting screen output before get edid& colorimetry*/
+
+    {
+      hdr_color_attributes crt0;
+      crt0.color_r[0] = 0.708;
+      crt0.color_r[1] = 0.292;
+      crt0.color_g[0] = 0.170;
+      crt0.color_g[1] = 0.797;
+      crt0.color_b[0] = 0.131;
+      crt0.color_b[1] = 0.046;
+
+      crt0.white_point[0]=0.3127;
+      crt0.white_point[1]=0.3290;
+
+
+      crt0.max_britness_nits = 400;
+      HdrSetColorMatrix(pScreen,0,&crt0);
+    }
 }
 
 void HdrSetColorMatrix(ScreenPtr pScreen,int crtnum, hdr_color_attributes *hdr_color_attrs)
 {
+  struct {
+  float u_colorMatrix[3][4];
+} data;
+
+  memset(&data,0,sizeof(data));
+
   float m[3][3];
+
   HDRutil_BT2020_matrix_colorspace(hdr_color_attrs,m);
+
+  memcpy(data.u_colorMatrix[0],m[0],3*sizeof(float));
+  memcpy(data.u_colorMatrix[1],m[1],3*sizeof(float));
+  memcpy(data.u_colorMatrix[2],m[2],3*sizeof(float));
 
   HDRScreenPrivateData *priv = dixLookupPrivate(&pScreen->devPrivates, HdrScrPrivateKey);
   BUG_RETURN_MSG(priv == NULL,"HdrSetColorMatrix called without initialized screen private");
+
+    glamor_screen_private *glamor_priv = glamor_get_screen_private(pScreen);
+    glamor_make_current(glamor_priv);
+
 
   if (priv->CRT_color_matrices[crtnum] != 0){
         glDeleteBuffers(1,&priv->CRT_color_matrices[crtnum]);
   }
 
+
   glGenBuffers(1, &priv->CRT_color_matrices[crtnum]);
   glBindBuffer(GL_UNIFORM_BUFFER, priv->CRT_color_matrices[crtnum]);
-  glBufferData(GL_UNIFORM_BUFFER, sizeof(m), m, GL_STATIC_DRAW);
+  glBufferData(GL_UNIFORM_BUFFER, sizeof(data), &data, GL_STATIC_DRAW);
+
 
 
 }
 
-void HdrFlagPixmap_CRT(PixmapPtr pixmap)
+void HdrFlagPixmap_CRT(PixmapPtr pixmap, int crtnum)
 {
   HDRPixmapPrivate *priv = dixLookupPrivate(&pixmap->devPrivates, HdrPixPrivateKey);
   priv->purpose = HDR_pixmap_crt;
+  priv->crt_num = crtnum;
 
 
 }
@@ -247,3 +374,40 @@ void HdrFlagPixmap_INTERMEDIATE(PixmapPtr pixmap)
   HDRPixmapPrivate *priv = dixLookupPrivate(&pixmap->devPrivates, HdrPixPrivateKey);
   priv->purpose = HDR_pixmap_intermiate;
 }
+
+void HdrFlagPixmap_SetPurpose(PixmapPtr pixmap, bool set_hdr)
+{
+  HDRPixmapPrivate *priv = dixLookupPrivate(&pixmap->devPrivates, HdrPixPrivateKey);
+
+    if (priv->purpose == HDR_pixmap_intermiate || priv->purpose == HDR_pixmap_crt){
+        return;
+    }
+
+  priv->purpose = set_hdr ? HDR_pixmap_HDR : HDR_pixmap_SDR_OR_PASSTHROUGH;
+}
+
+void HdrFillDefaultProperties(ScreenPtr pScreen, WindowPtr wnd)
+{
+  HDRScreenPrivateData *priv_screen = dixLookupPrivate(&pScreen->devPrivates, HdrScrPrivateKey);
+
+  if (priv_screen == NULL){
+      return;
+  }
+
+
+}
+
+HDR_conversion_e hdr_pick_conversion(DrawablePtr src,DrawablePtr dst){
+
+  /* XXX: todo */
+  if (dst->depth == 64 || dst->depth == 30) {
+
+    if (src->depth == 30 || src->depth == 24 || src->depth == 16 || src->depth == 8 || src->depth == 4 || src->depth == 1){
+        return HDR_conversion_SDR_to_Intermiate;
+    }
+
+  }
+
+  return HDR_conversion_no_need;
+}
+

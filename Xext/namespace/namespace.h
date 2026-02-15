@@ -46,6 +46,7 @@ struct XnamespaceClientPriv {
 #define NS_NAME_ROOT      "root"
 #define NS_NAME_ANONYMOUS "anon"
 
+_X_EXPORT
 extern DevPrivateKeyRec namespaceClientPrivKeyRec;
 
 Bool XnsLoadConfig(void);

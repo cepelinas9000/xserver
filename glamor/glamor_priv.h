@@ -259,12 +259,14 @@ typedef struct glamor_screen_private {
 
     /* glamor point shader */
     glamor_program point_prog;
+    glamor_program point_prog_sdr_to_bt2020_linear;
 
     /* glamor spans shaders */
     glamor_program_fill fill_spans_program;
 
     /* glamor rect shaders */
     glamor_program_fill poly_fill_rect_program;
+    glamor_program_fill poly_fill_rect_program_sdr_to_bt2020_linear;
 
     /* glamor glyphblt shaders */
     glamor_program_fill poly_glyph_blt_progs;
@@ -273,6 +275,11 @@ typedef struct glamor_screen_private {
     glamor_program_fill poly_text_progs;
     glamor_program      te_text_prog;
     glamor_program      image_text_prog;
+
+    /* glamor text shader for sdr to bt2020 linear */
+    glamor_program_fill poly_text_progs_sdr_to_bt2020_linear;
+    glamor_program      te_text_prog_sdr_to_bt2020_linear;
+    glamor_program      image_text_prog_sdr_to_bt2020_linear;
 
     /* glamor copy shaders */
     glamor_program      copy_area_prog;

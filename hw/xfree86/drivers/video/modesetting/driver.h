@@ -189,7 +189,7 @@ typedef struct _modesettingRec {
         const char *(*egl_get_driver_name)(ScreenPtr);
 
         void (*HdrSetColorMatrix)(ScreenPtr,int ,void *);
-        void (*HdrFlagPixmap_CRT)(PixmapPtr);
+        void (*HdrFlagPixmap_CRT)(PixmapPtr,int);
         void (*HdrFlagPixmap_INTERMEDIATE)(PixmapPtr);
 
 

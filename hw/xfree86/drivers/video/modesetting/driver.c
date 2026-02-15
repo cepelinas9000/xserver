@@ -1720,6 +1720,25 @@ modesetCreateScreenResources(ScreenPtr pScreen)
 
     Bool ret = miCreateScreenResources(pScreen);
 
+
+    if (pScrn->hdr_mode !=SCREEN_HDR_MODE_OFF){
+        /* this is bold copy of what `miCreateScreenResources contains without error checking.
+         * Replace pixmap acording HDR mode and mark it as intermediate (BT2020 linear colorspace)*/
+        pScreen->DestroyPixmap(pScreen->GetScreenPixmap(pScreen));
+        rootPixmap = pScreen->CreatePixmap(pScreen, 0, 0, drmmode_get_depth_for_hdr(pScrn->hdr_mode), 0);
+
+        pScreen->ModifyPixmapHeader(rootPixmap,pScreen->width,
+                                               pScreen->height,-1,
+                                               drmmode_get_depth_for_hdr(pScrn->hdr_mode),
+                                               PixmapBytePad(pScreen->width, drmmode_get_depth_for_hdr(pScrn->hdr_mode))
+                                               ,NULL);
+
+        pScreen->SetScreenPixmap(rootPixmap);
+
+        ms->glamor.HdrFlagPixmap_INTERMEDIATE(rootPixmap);
+    };
+
+
     if (!drmmode_set_desired_modes(pScrn, &ms->drmmode, pScrn->is_gpu, FALSE))
         return FALSE;
 
@@ -1737,24 +1756,7 @@ modesetCreateScreenResources(ScreenPtr pScreen)
             return FALSE;
     }
 
-
-    if (pScrn->hdr_mode !=SCREEN_HDR_MODE_OFF){
-        /* this is bold copy of what `miCreateScreenResources contains without error checking.
-         * Replace pixmap acording HDR mode and mark it as intermediate (BT2020 linear colorspace)*/
-        pScreen->DestroyPixmap(pScreen->GetScreenPixmap(pScreen));
-        rootPixmap = pScreen->CreatePixmap(pScreen, 0, 0, drmmode_get_depth_for_hdr(pScrn->hdr_mode), 0);
-
-        pScreen->ModifyPixmapHeader(rootPixmap,pScreen->width,
-                                               pScreen->height,-1,
-                                               drmmode_get_depth_for_hdr(pScrn->hdr_mode),
-                                               PixmapBytePad(pScreen->width, drmmode_get_depth_for_hdr(pScrn->hdr_mode))
-                                               ,NULL);
-
-        pScreen->SetScreenPixmap(rootPixmap);
-
-    } else {
-        rootPixmap = pScreen->GetScreenPixmap(pScreen);
-    }
+    rootPixmap = pScreen->GetScreenPixmap(pScreen);
     if (ms->drmmode.shadow_enable)
         pixels = ms->drmmode.shadow_fb;
 

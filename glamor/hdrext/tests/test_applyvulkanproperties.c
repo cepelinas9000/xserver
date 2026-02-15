@@ -1,3 +1,6 @@
+#include <dix-config.h>
+
+
 #include <criterion/criterion.h>
 
 #include "../applyvulkanproperties.h"
@@ -5,6 +8,13 @@
 #include "../hdrproto.h"
 
 #include <vulkan/vulkan.h>
+
+void
+FatalError(const char *f, ...)
+{
+    abort();
+}
+
 
 Test(applyvulkanproperter, HDR_vulkan_struct_header_packed ) {
 

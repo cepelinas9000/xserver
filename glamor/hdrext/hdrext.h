@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #include "pixmap.h"
+#include "window.h"
 
 /**
  * Wrapped (decoded) vulkan structure header from ListOfVULKANSTRUCTCHAIN
@@ -72,10 +73,21 @@ _X_EXPORT
 void HdrSetColorMatrix(ScreenPtr pScreen,int crtnum,hdr_color_attributes *hdr_color_attrs);
 
 _X_EXPORT
-void HdrFlagPixmap_CRT(PixmapPtr pixmap);
+void HdrFlagPixmap_CRT(PixmapPtr pixmap,int crtnum);
 
 _X_EXPORT
 void HdrFlagPixmap_INTERMEDIATE(PixmapPtr pixmap);
+
+_X_EXPORT
+void HdrFlagPixmap_SetPurpose(PixmapPtr pixmap, bool set_hdr);
+
+
+/**
+ * @brief HdrFillDefaultProperties fill default settings for root window
+ * @param wnd
+ */
+_X_EXPORT
+void HdrFillDefaultProperties(ScreenPtr pScreen,WindowPtr wnd);
 
 #endif
 

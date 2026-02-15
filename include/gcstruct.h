@@ -281,6 +281,9 @@ typedef struct _GC {
     const GCOps *ops;
     PrivateRec *devPrivates;
     RegionPtr pCompositeClip;
+
+
+    DrawablePtr current_origin_drawable; /* origin object, in HDR mode depth of it and backing pixmap probably different*/
 } GCRec;
 
 #endif                          /* GCSTRUCT_H */

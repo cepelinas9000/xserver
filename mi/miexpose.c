@@ -532,6 +532,7 @@ miPaintWindow(WindowPtr pWin, RegionPtr prgn, int what)
         return;
     }
 
+    pGC->current_origin_drawable = &pWin->drawable;   /* XXX */
     ChangeGC(NULL, pGC, gcmask, gcval);
     ValidateGC(drawable, pGC);
 

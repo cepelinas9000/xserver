@@ -9,16 +9,17 @@ headers_hdrext = [
         'hdrproto.h',
 ]
 
-xxd_exe = find_program('xxd')
-xxd_gen = generator(xxd_exe,
+genres_exe =  executable('hdrext_mkembed','hdrext_mkembed.c')
+genres_gen = generator(genres_exe,
   output: '@PLAINNAME@.h',
-  arguments: ['-i', '-C', '-n', '@PLAINNAME@', '@INPUT@', '@OUTPUT@'])
+  arguments: ['@PLAINNAME@', '@INPUT@', '@OUTPUT@'])
 
-embedded_source = xxd_gen.process([
+embedded_source = genres_gen.process([
         'shaders/bt2020-linear-to-crt-pq-fragment-shader-fp16.glsl',
         'shaders/bt2020-linear-to-crt-pq-vertex-shader-fp16.glsl',
         'shaders/sdr-fragment-shader-fp16.glsl',
         'shaders/sdr-vertex-shader-fp16.glsl',
+        'shaders/sdr_fragment_utils.glsl'
         ])
 
 
@@ -31,5 +32,7 @@ libxserver_hdrext = static_library('xserver_hdrext',
        dependencies: [common_dep ],
 )
 
-
-subdir('tests')
+build_tests = get_option('tests')
+if build_tests
+    subdir('tests')
+endif

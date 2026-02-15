@@ -22,7 +22,7 @@ int XineramaDeleteResource(void *, XID);
 /* only exported for Nvidia legacy. This really shouldn't be used by drivers */
 extern _X_EXPORT RESTYPE XRC_DRAWABLE;
 
-extern RESTYPE XRT_WINDOW;
+extern _X_EXPORT RESTYPE XRT_WINDOW; /* XXX: for hdr */
 extern RESTYPE XRT_PIXMAP;
 extern RESTYPE XRT_GC;
 extern RESTYPE XRT_COLORMAP;
