@@ -197,7 +197,12 @@ gbm_create_front_bo(drmmode_ptr drmmode, Bool do_map,
                     bo_priv_t *data,
                     unsigned width, unsigned height)
 {
-    uint32_t format = drmmode_gbm_format_for_depth(drmmode->scrn->depth);
+    uint32_t format;
+    if (drmmode->hdr_mode != SCREEN_HDR_MODE_OFF){
+        format = drmmode_gbm_format_for_hdr(drmmode->hdr_mode);
+    } else {
+        format = drmmode_gbm_format_for_depth(drmmode->scrn->depth);
+    }
 
     uint32_t num_modifiers = 0;
     uint64_t *modifiers = NULL;

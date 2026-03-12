@@ -36,6 +36,8 @@ SOFTWARE.
 #include "pixmap.h"
 #include "privates.h"
 
+#include <stdbool.h>
+
 /*
  * 	direct-mapped hash table, used by resource manager to store
  *      translation from client ids to server addresses.
@@ -109,6 +111,12 @@ struct _Client {
     DeviceIntPtr clientPtr;
     struct _ClientId *clientIds;
     int req_fds;
+
+    bool latch_is_set;
+    uint16_t latched_depth;
+    VisualID latched_visualid;
+    uint32_t latched_bpp;
+
 };
 
 extern _X_EXPORT TimeStamp currentTime;

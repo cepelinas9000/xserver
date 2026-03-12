@@ -1,0 +1,27 @@
+#version 310 es
+#extension GL_NV_uniform_buffer_std430_layout: enable
+#extension GL_EXT_scalar_block_layout: enable
+#extension GL_GOOGLE_include_directive: enable
+#extension GL_ARB_shading_language_include : enable
+
+#include "/sdr_fragment_utils.glsl"
+
+precision highp float;
+precision highp sampler2D;
+
+
+// Input texture (8-bit sRGB)
+uniform sampler2D u_inputTexture;
+in vec2 fill_pos;
+
+// Output to 16-bit floating point texture
+out vec4 o_fragColor;
+
+
+void main() {
+
+    vec3 inputColor = texture(u_inputTexture, fill_pos).rgb;
+
+    // Output to 16-bit floating point texture
+    o_fragColor = vec4(rec709_to_bt2020_linear(inputColor), 1.0);
+}

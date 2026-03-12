@@ -134,6 +134,7 @@ typedef enum {
     DEFAULTDEPTH,
     DEFAULTBPP,
     DEFAULTFBBPP,
+    HDR_TOKEN,
 
     /* VideoAdaptor tokens */
     VIDEOADAPTOR,

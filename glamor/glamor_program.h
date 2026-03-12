@@ -48,6 +48,16 @@ typedef enum {
     glamor_program_alpha_count
 } glamor_program_alpha;
 
+/**
+ * @brief glamor_program_colorspace main user is glamor_use_program_fill
+ * it is necesary, for example glamor_use_program compiles different shader program if fill is different (akin ubershader)
+ *
+ */
+typedef enum {
+    glamor_program_colorspace_intact,
+    glamor_program_colorspace_sdr_to_bt2020linear,
+} glamor_program_colorspace;
+
 typedef struct _glamor_program glamor_program;
 
 typedef Bool (*glamor_use) (DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg);
@@ -69,6 +79,9 @@ typedef struct {
     glamor_use                          use;
     glamor_use_render                   use_render;
 } glamor_facet;
+
+extern const glamor_facet glamor_facet_copyplane;
+extern const glamor_facet glamor_facet_copyarea;
 
 struct _glamor_program {
     GLint                       prog;
@@ -115,9 +128,11 @@ glamor_use_program(DrawablePtr          drawable,
 
 glamor_program *
 glamor_use_program_fill(DrawablePtr             drawable,
+                        PixmapPtr            dst_backing,
                         GCPtr                   gc,
                         glamor_program_fill     *program_fill,
-                        const glamor_facet      *prim);
+                        const glamor_facet      *prim,
+                        glamor_program_colorspace colors_transform);
 
 typedef enum {
     glamor_program_source_solid,

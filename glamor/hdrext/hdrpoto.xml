@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+!-->
+<xcb header="hdrproto" extension-xname="HDRproto" extension-name="HDRproto" major-version="0" minor-version="1">
+  <import>xproto</import>
+
+  <struct name="SupportedXlibreSurfacesSurfaceType">
+    <field type="CARD8" name="size"/>
+    <pad bytes="1"/>
+    <field type="CARD16" name="visualClass"/>
+    <field type="CARD32" name="format"/>
+    <field type="CARD32" name="colorspace"/>
+    <pad bytes="4"/>
+    <field type="CARD64" name="flags"/>
+  </struct>
+
+  <request name="QueryVersion" opcode="0">
+    <field type="CARD32" name="major_version"/>
+    <field type="CARD32" name="minor_version"/>
+    <reply>
+      <required_start_align align="8"/>
+      <pad bytes="1"/>
+      <field type="CARD32" name="major_version"/>
+      <field type="CARD32" name="minor_version"/>
+      <field type="CARD64" name="flags"/>
+      <field type="CARD32" name="vkVersion"/>
+      <pad bytes="4"/>
+    </reply>
+  </request>
+
+  <request name="ListSupportedXlibreSurfaces" opcode="1">
+    <field type="CARD16" name="deviceIdType"/>
+    <field type="CARD16" name="deviceIdLength"/>
+    <list type="CARD8" name="deviceID">
+      <fieldref>deviceIdLength</fieldref>
+    </list>
+  </request>
+
+</xcb>

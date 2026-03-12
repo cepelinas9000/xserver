@@ -1,0 +1,184 @@
+!!! draft of draft !!! !!! draft of draft !!!  !!! draft of draft !!! !!! draft of draft !!!  
+!!! draft of draft !!! !!! draft of draft !!!  !!! draft of draft !!! !!! draft of draft !!!  
+!!! draft of draft !!! !!! draft of draft !!!  !!! draft of draft !!! !!! draft of draft !!!  
+!!! draft of draft !!! !!! draft of draft !!!  !!! draft of draft !!! !!! draft of draft !!!  
+
+You have warned:
+
+HDRProto - high dynamic range & co ()
+
+---
+
+1. Introduction
+
+The HDRProto (for prototype call HDRToadProto) is graphics controlling (colorimetry, wide gammut, etc..) extension for X server. Main purpose is to enable and tune HDR color in X11. Most ideas and structures of this extension is based on Vulkan. During creation of this document using 1.4.341 vesion (see:  https://github.com/KhronosGroup/Vulkan-Docs). It doens't mean that to use HDR you need use Vulkan. This extension uses Vulkan structures to communicate and apply properties (current VkSurfaceFormat2KHR and VkHdrMetadataEXT). In other words to set surface colorspace in opengl application you are communicating via vulkan structures and uses it's constants.
+
+To work correctly it need driver support and only modesetting driver have prototype implementation (as 2026-02-xx).
+
+5. Protocol Types
+
+ListOfVULKANSTRUCTCHAIN {  
+                                          CARD32 vkStructure (direct mirror VkStructureType )
+                                          CARD16   structflags
+                                          CARD16   total-lo-size
+                                          CARD8 total-hi-size                                     
+                                          CARD16   current-size-lo-size
+                                          CARD8  current-size-hi-size
+                                          .... rest of vulkan structure
+                                        }
+
+The VULKANSTRUCTCHAIN system provides a mirrored representation of core Vulkan API structures assuming 64 bit architecture for pointer. This structure is  optimized for 64-bit architectures - it is one memcpy away to be compliment with X11 protocol. If used in other architecture (32 -bit) - it is necessary to reformated structure extended pNext field to 64 bit.  The semantics  very similar as in vulkan - structure can be chained with multiple additional extensions (for example see: https://docs.vulkan.org/refpages/latest/refpages/source/VkSurfaceFormat2KHR.html#VUID-VkSurfaceFormat2KHR-pNext-pNext ). Main difference - List ListOfVULKANSTRUCTCHAIN can contain independt structures, for example list of [VkSurfaceFormat2KHR,VkImageCompressionPropertiesEXT,VkHdrMetadataEXT] - this is totally valid as thier interpretation depends on Xserver or vendorized extensions.
+
+
+For X11 pNext  pointer field is split into following following items:
+CARD16 structflags - is 16 bit flags field
+
+(total-hi-size  << 24) | (total-lo-size) - is 24 bit size (size counted in CARD32 words if necessary padded) of rest chain (total size of the tail - for semanticly correct chain for example size [VkSurfaceFormat2KHR,VkImageCompressionPropertiesEXT] )
+(chain-hi-size << 24) | (chain-lo-size) - is 24 bit size (in CARD32 words) of current structure size 
+
+
+
+For Example  list with 1 item `VkSurfaceFormat2KHR` is:
+
+{
+   CARD32 vkStructure =  1000119002 (VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR)
+   CARD16   structflags = 0
+   CARD16   total-lo-size = 5
+   CARD8 total-hi-size     =  0                             
+   CARD16   current-size-lo-size = 5
+   CARD8  current-size-hi-size = 0
+   CARD32 VkSurfaceFormatKHR.format         =VK_FORMAT_B8G8R8A8_UINT
+   CARD32 VkSurfaceFormatKHR.colorspace   = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+}
+
+Or list with two items with extra `VkImageCompressionPropertiesEXT`
+
+{
+   CARD32 vkStructure =  1000119002 (VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR)
+   CARD16   structflags = 0
+   CARD16   total-lo-size = 10
+   CARD8 total-hi-size     =  0                             
+   CARD16   current-size-lo-size = 5
+   CARD8  current-size-hi-size = 0
+   CARD32 VkSurfaceFormatKHR.format         =VK_FORMAT_B8G8R8A8_UINT
+   CARD32 VkSurfaceFormatKHR.colorspace   = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+
+   CARD32 vkStructure =  1000338004 (VK_STRUCTURE_TYPE_IMAGE_COMPRESSION_PROPERTIES_EXT)
+   CARD16   structflags = 0
+   CARD16   total-lo-size = 5
+   CARD8 total-hi-size     =  0                             
+   CARD16   current-size-lo-size = 5
+   CARD8  current-size-hi-size = 0
+   CARD32 imageCompressionFlags         = VK_IMAGE_COMPRESSION_DEFAULT_EXT
+   CARD32 imageCompressionFixedRateFlags   = 0,
+
+
+}
+
+
+ENUM8  GraphicsObjectE {
+    SCREEN = 0
+    WINDOW
+    COLORMAP
+    PIXMAP
+    DEVICE (XRANDR provider id )
+    XRANDR_CRT
+
+   }
+
+Describes object type for HDRGraphicObjectId
+
+HDRGraphicObjectId {
+                                   CARD16 flags_lo
+                                   CARD8   flags_hi
+                                   ENUM8  GraphicsObjectE
+                                   XID or CARD32 ObjectID
+}
+
+This structure is used in `ApplyVulkanData` call to identify where data should be applicable 
+
+
+
+
+6. Extension Initialization
+
+
+┌───
+    HDRQueryVersion
+	client-major-version:	CARD32
+	client-minor-version:	CARD32
+      ▶
+	major-version:		CARD32
+	minor-version:		CARD32
+        flags               :                CARD64
+	vkVersion       :                CARD32
+        pad                 :                CARD32
+ 
+        
+└───
+
+	The client sends the highest supported version to the server
+	and the server sends the highest version it supports, but no
+	higher than the requested version. Major versions changes can
+	introduce incompatibilities in existing functionality, minor
+	version changes introduce only backward compatible changes.
+	It is the clients responsibility to ensure that the server
+	supports a version which is compatible with its expectations.
+
+
+field flags have following constants:
+
+0x0000000000000001 - VENDORIZED_HOOKS  ApplyVulkanStruct and similar functions behavior is hooked and expect non-standard behaviour 
+0x0000000000000002 -  VENDORIZED_HOOKS_EXT same as  VENDORIZED_HOOKS but callbacks are forward to external service 
+
+
+vkVersion field uses same format as VK_MAKE_API_VERSION macro - is is not on which vulkan version XServer running, but which version structures and constants are based
+			      ❧❧❧❧❧❧❧❧❧❧❧
+
+
+
+7. Extension Requests
+┌───
+    ApplyVulkanProperties
+    flags                    : CARD64
+    timestamp          : CARD64
+    msc                     : CARD32
+    pad                      : CARD32
+    
+    vkstruct_size                     : CARD32
+    chain_start                        : CARD32
+
+    object_to_apply_len : CARD8
+
+
+    pad : CARD16
+    pad: CARD32
+
+    object_to_apply :ListOfHDRGraphicObjectId
+    chains      : ListOfVULKANSTRUCTCHAIN
+
+    pad2 : ListOfCARD8
+      ▶
+
+        operation_status                   :CARD8
+        resp_flags                            : CARD32
+
+└───
+
+ApplyVulkanProperties is generic call to apply vulkan structures. Ar for where it applied - it left for xserver to figure out taking account object_to_apply objects.  
+
+CARD64 msc - TODO, .
+flags - 
+
+Currently supported:
+* VkSurfaceFormat2KHR - set surface format for pixmap, or latches default pixmap  version when pointed to windows or colormaps
+* VkHdrMetadataEXT - set colorimetry information for surface or latches default version for windows, colormaps (when colosepace is passthrough)
+
+
+
+8. Aditional Properties
+
+When turned on color management need document them
+
+
+

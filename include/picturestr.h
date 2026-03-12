@@ -155,6 +155,8 @@ typedef struct _Picture {
     SourcePictPtr pSourcePict;
     xFixed *filter_params;
     int filter_nparams;
+
+    WindowPtr wnd; /* XXX: for HDR, if picture from window */
 } PictureRec;
 
 typedef Bool (*PictFilterValidateParamsProcPtr) (ScreenPtr pScreen, int id,

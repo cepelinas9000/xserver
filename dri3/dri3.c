@@ -112,18 +112,30 @@ bail:
     FatalError("Cannot initialize DRI3 extension");
 }
 
+// XXX: there is DRM_FORMAT_ABGR16161616F and DRM_FORMAT_ABGR16161616 (integer) - both have same depth and bpp
 uint32_t
 drm_format_for_depth(uint32_t depth, uint32_t bpp)
 {
+    if (depth == 32 && bpp == 10){ /// XXX: !!!!
+       return DRM_FORMAT_XBGR2101010;
+    }
+
+    if (depth == 64 && bpp == 16){
+        return DRM_FORMAT_XBGR2101010;
+    }
+
     switch (bpp) {
         case 16:
             return DRM_FORMAT_RGB565;
         case 24:
             return DRM_FORMAT_XRGB8888;
         case 30:
-            return DRM_FORMAT_XRGB2101010;
+            return DRM_FORMAT_XBGR2101010; /* */
         case 32:
             return DRM_FORMAT_ARGB8888;
+        case 64:
+            return DRM_FORMAT_ABGR16161616F;
+
         default:
             return 0;
     }

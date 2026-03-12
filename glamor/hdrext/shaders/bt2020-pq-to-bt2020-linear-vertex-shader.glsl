@@ -1,0 +1,15 @@
+#version 310 es
+precision highp float;
+
+in vec2 primitive;
+uniform vec2 fill_offset;
+uniform vec2 fill_size_inv;
+out vec2 fill_pos;
+uniform vec4 v_matrix;
+
+void main() {
+       gl_Position.xy = primitive.xy.xy * v_matrix.xz + v_matrix.yw;
+       gl_Position.zw = vec2(0.0,1.0);
+       fill_pos = (fill_offset + primitive.xy) * fill_size_inv;
+}
+

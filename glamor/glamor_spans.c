@@ -66,8 +66,8 @@ glamor_fill_spans_gl(DrawablePtr drawable,
     glamor_make_current(glamor_priv);
 
     if (glamor_glsl_has_ints(glamor_priv)) {
-        prog = glamor_use_program_fill(drawable, gc, &glamor_priv->fill_spans_program,
-                                       &glamor_facet_fillspans_130);
+        prog = glamor_use_program_fill(drawable, pixmap, gc, &glamor_priv->fill_spans_program,
+                                       &glamor_facet_fillspans_130, glamor_program_colorspace_intact);
 
         if (!prog)
             goto bail;
@@ -91,8 +91,8 @@ glamor_fill_spans_gl(DrawablePtr drawable,
 
         glamor_put_vbo_space(screen);
     } else {
-        prog = glamor_use_program_fill(drawable, gc, &glamor_priv->fill_spans_program,
-                                       &glamor_facet_fillspans_120);
+        prog = glamor_use_program_fill(drawable, pixmap, gc, &glamor_priv->fill_spans_program,
+                                       &glamor_facet_fillspans_120, glamor_program_colorspace_intact);
 
         if (!prog)
             goto bail;

@@ -27,6 +27,9 @@
 #include <dixfontstr.h>
 #include "glamor_transform.h"
 
+
+#include "hdrext/hdrext_priv.h"
+
 /*
  * Fill in the array of charinfo pointers for the provided characters. For
  * missing characters, place a NULL in the array so that the charinfo array
@@ -266,6 +269,22 @@ static const char fs_exec_te[] =
     "       else\n"
     "               frag_color = fg;\n";
 
+static const char fs_exec_te_sdr_to_bt2020_linear[] =
+    "       ivec2 itile_texture = ivec2(glyph_pos);\n"
+#if BITMAP_BIT_ORDER == MSBFirst
+    "       uint x = uint(7) - uint(itile_texture.x & 7);\n"
+#else
+    "       uint x = uint(itile_texture.x & 7);\n"
+#endif
+    "       itile_texture.x >>= 3;\n"
+    "       uint texel = texelFetch(font, itile_texture, 0).x;\n"
+    "       uint bit = (texel >> x) & uint(1);\n"
+    "       if (bit == uint(0))\n"
+    "               frag_color = vec4(rec709_to_bt2020_linear(bg.rgb), bg.a);\n"
+    "       else\n"
+    "               frag_color = vec4(rec709_to_bt2020_linear(fg.rgb), fg.a);\n";
+
+
 static const glamor_facet glamor_facet_poly_text = {
     .name = "poly_text",
     .version = 130,
@@ -276,6 +295,7 @@ static const glamor_facet glamor_facet_poly_text = {
     .source_name = "source",
     .locations = glamor_program_location_font,
 };
+
 
 static Bool
 glamor_poly_text(DrawablePtr drawable, GCPtr gc,
@@ -301,7 +321,7 @@ glamor_poly_text(DrawablePtr drawable, GCPtr gc,
 
     glamor_make_current(glamor_priv);
 
-    prog = glamor_use_program_fill(drawable, gc, &glamor_priv->poly_text_progs, &glamor_facet_poly_text);
+    prog = glamor_use_program_fill(drawable, pixmap, gc, &glamor_priv->poly_text_progs, &glamor_facet_poly_text, glamor_program_colorspace_intact);
 
     if (!prog)
         goto bail;
@@ -371,6 +391,16 @@ static const glamor_facet glamor_facet_image_fill = {
     .use = use_image_solid,
 };
 
+static const glamor_facet glamor_facet_image_fill_sdr_to_bt2020 = {
+    .version =320,
+    .name = "solid",
+    .fs_extensions ="#extension GL_GOOGLE_include_directive: enable\n#extension GL_ARB_shading_language_include : enable\n#include \"/sdr_fragment_utils.glsl\"\n",
+    .fs_exec = "       frag_color = vec4(rec709_to_bt2020_linear(fg.rgb), fg.a);\n",
+    .locations = glamor_program_location_fg,
+    .use = use_image_solid,
+};
+
+
 static Bool
 glamor_te_text_use(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
@@ -391,6 +421,21 @@ static const glamor_facet glamor_facet_te_text = {
     .source_name = "source",
     .use = glamor_te_text_use,
 };
+
+static const glamor_facet glamor_facet_te_text_sdr_to_bt2020_linear = {
+    .name = "te_text_sdr_to_bt2020linear",
+    .version = 320,
+    .vs_vars = vs_vars_text,
+    .vs_exec = vs_exec_text,
+    .fs_extensions ="#extension GL_GOOGLE_include_directive: enable\n#extension GL_ARB_shading_language_include : enable\n#include \"/sdr_fragment_utils.glsl\"\n",
+    .fs_vars = fs_vars_text,
+    .fs_exec = fs_exec_te_sdr_to_bt2020_linear,
+    .locations = glamor_program_location_fg | glamor_program_location_bg | glamor_program_location_font,
+    .source_name = "source",
+    .use = glamor_te_text_use,
+};
+
+
 
 static Bool
 glamor_image_text(DrawablePtr drawable, GCPtr gc,
@@ -419,21 +464,60 @@ glamor_image_text(DrawablePtr drawable, GCPtr gc,
 
     glamor_make_current(glamor_priv);
 
-    if (TERMINALFONT(gc->font))
-        prog = &glamor_priv->te_text_prog;
-    else
-        prog = &glamor_priv->image_text_prog;
+    HDR_conversion_e hdr_conversion = hdr_pick_conversion(drawable,&pixmap->drawable);
+
+
+    switch (hdr_conversion) {
+
+        case HDR_conversion_SDR_to_Intermiate:
+        {
+
+            if (TERMINALFONT(gc->font))
+                prog = &glamor_priv->te_text_prog_sdr_to_bt2020_linear;
+            else
+                prog = &glamor_priv->image_text_prog_sdr_to_bt2020_linear;
+
+        }
+        break;
+        default:
+        {
+            if (TERMINALFONT(gc->font))
+                prog = &glamor_priv->te_text_prog;
+            else
+                prog = &glamor_priv->image_text_prog;
+
+        }
+        break;
+}
 
     if (prog->failed)
         goto bail;
 
+
+
     if (!prog->prog) {
-        if (TERMINALFONT(gc->font)) {
-            prim_facet = &glamor_facet_te_text;
-            fill_facet = NULL;
-        } else {
-            prim_facet = &glamor_facet_image_text;
-            fill_facet = &glamor_facet_image_fill;
+
+        switch (hdr_conversion) {
+
+            case HDR_conversion_SDR_to_Intermiate:
+                if (TERMINALFONT(gc->font)) {
+                    prim_facet = &glamor_facet_te_text_sdr_to_bt2020_linear;
+                    fill_facet = NULL;
+                } else {
+                    prim_facet = &glamor_facet_image_text;
+                    fill_facet = &glamor_facet_image_fill_sdr_to_bt2020;
+                }
+                break;
+
+            default:
+                if (TERMINALFONT(gc->font)) {
+                    prim_facet = &glamor_facet_te_text;
+                    fill_facet = NULL;
+                } else {
+                    prim_facet = &glamor_facet_image_text;
+                    fill_facet = &glamor_facet_image_fill;
+                }
+
         }
 
         if (!glamor_build_program(screen, prog, prim_facet, fill_facet, NULL, NULL))
@@ -473,6 +557,11 @@ glamor_image_text(DrawablePtr drawable, GCPtr gc,
 
     if (!glamor_use_program(drawable, gc, prog, NULL))
         goto bail;
+
+
+    if (hdr_conversion != HDR_conversion_no_need) {
+        hdr_setglprogram_params(screen,prog,drawable,&pixmap->drawable,hdr_conversion);
+    }
 
     (void) glamor_text(drawable, gc, glamor_font, prog,
                        x, y, count, chars, charinfo, sixteen);

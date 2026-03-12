@@ -54,8 +54,9 @@ typedef void (*XorgScreenWindowDestroyProcPtr)(CallbackListPtr *pcbl,
  * ever setting it.
  *
  * When registration fails, the server aborts.
- *
+ * @note: _X_EXPORT for HDR
  **/
+_X_EXPORT
 void dixScreenHookWindowDestroy(ScreenPtr pScreen,
                                 XorgScreenWindowDestroyProcPtr func);
 
@@ -69,7 +70,9 @@ void dixScreenHookWindowDestroy(ScreenPtr pScreen,
  * @see dixScreenHookWindowDestroy
  *
  * Unregister a window destructor hook registered via @ref dixScreenHookWindowDestroy
+ * @note: _X_EXPORT for HDR
  **/
+_X_EXPORT
 void dixScreenUnhookWindowDestroy(ScreenPtr pScreen,
                                   XorgScreenWindowDestroyProcPtr func);
 
@@ -174,7 +177,10 @@ void dixScreenHookPostClose(ScreenPtr pScreen,
  *
  * In contrast to Close hook, it's called *after* the driver's CloseScreen()
  * proc had been called.
+ *
+ * XXX: exported for hdr
  **/
+_X_EXPORT
 void dixScreenUnhookPostClose(ScreenPtr pScreen,
                               XorgScreenCloseProcPtr func);
 
@@ -223,6 +229,19 @@ typedef void (*XorgScreenPostCreateResourcesProcPtr)(CallbackListPtr *pcbl,
                                                      Bool *ret);
 
 /**
+ * Parameters for HDR extension
+ */
+typedef struct {
+    ScreenPtr   pScreen;
+    PixmapPtr   pPixmap;
+    ColormapPtr pCmap;
+    WindowPtr   pWindow;
+} XorgScreenHDRImportPixmapProcPtr_params_S, *pXorgScreenHDRImportPixmapProcPtr_params_S;
+
+typedef void (*XorgScreenHDRImportPixmapProcPtr)(CallbackListPtr *pcbl,
+                                                 ScreenPtr pScreen,
+                                                 pXorgScreenHDRImportPixmapProcPtr_params_S pParams);
+/**
  * @brief register post-CreateScreenResources hook on the given screen
  *
  * @param pScreen pointer to the screen to register the notify hook into
@@ -248,5 +267,20 @@ void dixScreenHookPostCreateResources(ScreenPtr pScreen,
 _X_EXPORT
 void dixScreenUnhookPostCreateResources(ScreenPtr pScreen,
                                         XorgScreenPostCreateResourcesProcPtr func);
+
+
+/**
+ * @brief XXX register hook on new pixmap create
+ *
+ * current usage is for HDRExt to apply default HDRColor properties
+ */
+
+_X_EXPORT
+void dixScreenHookHDRImportPixmap(ScreenPtr pScreen,
+                                  XorgScreenHDRImportPixmapProcPtr func);
+
+_X_EXPORT
+void dixScreenUnhookHDRImportPixmap(ScreenPtr pScreen,
+                                      XorgScreenHDRImportPixmapProcPtr func);
 
 #endif /* DIX_SCREEN_HOOKS_H */

@@ -28,6 +28,8 @@
 #include "glamor_prepare.h"
 #include "glamor_transform.h"
 
+#include "hdrext/hdrext_priv.h"
+
 struct copy_args {
     DrawablePtr         src_drawable;
     glamor_pixmap_fbo   *src;
@@ -50,7 +52,7 @@ use_copyarea(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
     return TRUE;
 }
 
-static const glamor_facet glamor_facet_copyarea = {
+const glamor_facet glamor_facet_copyarea = {
     "copy_area",
     .vs_vars = "in vec2 primitive;\n",
     .vs_exec = (GLAMOR_POS(gl_Position, primitive.xy)
@@ -141,7 +143,7 @@ use_copyplane(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
     return TRUE;
 }
 
-static const glamor_facet glamor_facet_copyplane = {
+const glamor_facet glamor_facet_copyplane = {
     "copy_plane",
     .version = 130,
     .vs_vars = "in vec2 primitive;\n",
@@ -407,6 +409,10 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     args.src_drawable = src;
     args.bitplane = bitplane;
 
+    HDR_copy_find_hdr_glamor_program(screen,glamor_priv,src,src_pixmap,dst,dst_pixmap,&prog);
+
+
+
     /* Set up the vertex buffers for the points */
 
     v = glamor_get_vbo_space(dst->pScreen, nbox * 8 * sizeof (int16_t), &vbo_offset);
@@ -478,17 +484,22 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
                                                  &dst_off_x, &dst_off_y))
                 goto bail_ctx;
 
+            HDR_copy_find_hdr_glamor_program_set_parameters(screen,glamor_priv,src,src_pixmap,dst,dst_pixmap,prog);
+
             glScissor(scissor.x1 + dst_off_x,
                       scissor.y1 + dst_off_y,
                       scissor.x2 - scissor.x1,
                       scissor.y2 - scissor.y1);
 
             glamor_glDrawArrays_GL_QUADS(glamor_priv, nbox);
+
+
         }
     }
 
     ret = TRUE;
 
+    //dump_uniforms(prog->prog);
 bail_ctx:
     if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order) {
         glDisable(GL_TILE_RASTER_ORDER_FIXED_MESA);

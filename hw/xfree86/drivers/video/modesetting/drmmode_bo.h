@@ -59,4 +59,23 @@ drmmode_gbm_format_for_depth(int depth)
     return GBM_FORMAT_ARGB8888;
 }
 
+static inline uint32_t
+drmmode_gbm_format_for_hdr(ScreenHDRMode hdr_mode)
+{
+    switch (hdr_mode) {
+    case SCREEN_HDR_MODE_OFF:
+        return GBM_FORMAT_ARGB8888;
+    case SCREEN_HDR_MODE_10i:
+        return GBM_FORMAT_ABGR2101010;
+    case SCREEN_HDR_MODE_16f:
+        return GBM_FORMAT_ABGR16161616F;
+    default:
+        /* it can happen if modesetting driver is not from same codebase as rest Xserver or mode is not supported */
+        FatalError("Unknown hdr mode requested %d\n", (int)hdr_mode);
+        return  GBM_FORMAT_ARGB8888;
+        break;
+    }
+}
+
+
 #endif /* DRMMODE_BO_H */

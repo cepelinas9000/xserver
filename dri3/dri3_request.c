@@ -37,6 +37,11 @@
 #include "randrstr_priv.h"
 #include "dixstruct_priv.h"
 
+#include "screen_hooks_priv.h"
+
+#include "colormap_priv.h"
+#include "hdrext/hdrext_priv.h"
+
 static Bool
 dri3_screen_can_one_point_one(ScreenPtr screen)
 {
@@ -271,6 +276,8 @@ proc_dri3_pixmap_from_buffer(ClientPtr client)
     if (!AddResource(stuff->pixmap, X11_RESTYPE_PIXMAP, (void *) pixmap))
         return BadAlloc;
 
+
+
     return Success;
 }
 
@@ -397,7 +404,7 @@ proc_dri3_get_supported_modifiers(ClientPtr client)
     pScreen = window->drawable.pScreen;
 
     dri3_get_supported_modifiers(pScreen, &window->drawable,
-                                 stuff->depth, stuff->bpp,
+                                 client->latch_is_set ? client->latched_depth : stuff->depth, client->latch_is_set ?  client->latched_bpp :stuff->bpp,
                                  &nwindowmodifiers, &window_modifiers,
                                  &nscreenmodifiers, &screen_modifiers);
 
@@ -503,7 +510,7 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
                               stuff->num_buffers, fds,
                               stuff->width, stuff->height,
                               strides, offsets,
-                              stuff->depth, stuff->bpp,
+                              stuff->depth, client->latch_is_set ? client->latched_bpp  : stuff->bpp,
                               stuff->modifier);
 
     for (i = 0; i < stuff->num_buffers; i++)
@@ -525,6 +532,24 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
     if (!AddResource(stuff->pixmap, X11_RESTYPE_PIXMAP, (void *) pixmap))
         return BadAlloc;
 
+    /* HDR stuff  - apply properties*/
+
+
+    ColormapPtr pCmap = NULL;
+    rc = dixLookupResourceByType((void **) &pCmap, window->optional->colormap, X11_RESTYPE_COLORMAP,
+                                 client, DixReadAccess);
+
+    if(rc == Success && pCmap && pCmap->class == HDRColor){
+
+        XorgScreenHDRImportPixmapProcPtr_params_S params;
+        params.pPixmap = pixmap;
+        params.pCmap = pCmap;
+        params.pScreen = screen;
+        params.pWindow = window;
+        CallCallbacks(&screen->hookHDRImportPixmap,&params);
+    }
+
+    /* end of HDR stuff */
     return Success;
 }
 

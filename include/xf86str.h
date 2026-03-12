@@ -358,6 +358,8 @@ typedef struct _confscreenrec {
 
     int num_gpu_devices;
     GDevPtr gpu_devices[MAX_GPUDEVICES];
+
+    const char *hdr_mode;
 } confScreenRec, *confScreenPtr;
 
 typedef enum {
@@ -690,6 +692,8 @@ struct _ScrnInfoRec {
     int reservedInt[NUM_RESERVED_INTS];
     void *reservedPtr[NUM_RESERVED_POINTERS];
     funcPointer reservedFuncs[NUM_RESERVED_FUNCS];
+
+    ScreenHDRMode hdr_mode;
 };
 
 typedef struct {

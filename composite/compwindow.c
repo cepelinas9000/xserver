@@ -662,6 +662,9 @@ compWindowUpdateAutomatic(WindowPtr pWin)
                                            0, 0,
                                            serverClient,
                                            &error);
+
+    pSrcPicture->wnd = pWin;
+
     XID subwindowMode = IncludeInferiors;
     PicturePtr pDstPicture = CreatePicture(0, &pParent->drawable,
                                            pDstFormat,
@@ -670,6 +673,7 @@ compWindowUpdateAutomatic(WindowPtr pWin)
                                            serverClient,
                                            &error);
 
+    pDstPicture->wnd = pParent;
     /*
      * First move the region from window to screen coordinates
      */

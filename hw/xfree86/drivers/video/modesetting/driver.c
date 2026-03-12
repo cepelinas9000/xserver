@@ -76,6 +76,8 @@
 #include "driver.h"
 #include "drmmode_bo.h"
 
+#include "servermd.h"
+
 static void AdjustFrame(ScrnInfoPtr pScrn, int x, int y);
 static Bool CloseScreen(ScreenPtr pScreen);
 static Bool EnterVT(ScrnInfoPtr pScrn);
@@ -1051,6 +1053,9 @@ load_glamor(ScrnInfoPtr pScrn)
     ms->glamor.supports_pixmap_import_export = LoaderSymbolFromModule(mod, "glamor_supports_pixmap_import_export");
     ms->glamor.xv_init = LoaderSymbolFromModule(mod, "glamor_xv_init");
     ms->glamor.egl_get_driver_name = LoaderSymbolFromModule(mod, "glamor_egl_get_driver_name");
+    ms->glamor.HdrSetColorMatrix = LoaderSymbolFromModule(mod,"HdrSetColorMatrix");
+    ms->glamor.HdrFlagPixmap_CRT = LoaderSymbolFromModule(mod,"HdrFlagPixmap_CRT");
+    ms->glamor.HdrFlagPixmap_INTERMEDIATE= LoaderSymbolFromModule(mod,"HdrFlagPixmap_INTERMEDIATE");
 
     return TRUE;
 }
@@ -1282,6 +1287,19 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     if (!ms->drmmode.kbpp)
         ms->drmmode.kbpp = pScrn->bitsPerPixel;
 
+    /* XXX: need better place */
+  if (pScrn->confScreen->hdr_mode == NULL){
+  
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"10i")) {
+      pScrn->hdr_mode = SCREEN_HDR_MODE_10i;
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"16f")){
+      pScrn->hdr_mode = SCREEN_HDR_MODE_16f;
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"32f")){
+      pScrn->hdr_mode = SCREEN_HDR_MODE_32f;
+  } else if (strcmp(pScrn->confScreen->hdr_mode,"64f")){
+      pScrn->hdr_mode = SCREEN_HDR_MODE_64f;
+  }
+
     /* Process the options */
     xf86CollectOptions(pScrn, NULL);
     if (!(ms->drmmode.Options = calloc(1, sizeof(Options))))
@@ -1444,6 +1462,7 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->shadow.Update32to24 = LoaderSymbolFromModule(mod, "shadowUpdate32to24");
         ms->shadow.UpdatePacked = LoaderSymbolFromModule(mod, "shadowUpdatePacked");
     }
+
 
     return TRUE;
  fail:
@@ -1700,6 +1719,25 @@ modesetCreateScreenResources(ScreenPtr pScreen)
 
     Bool ret = miCreateScreenResources(pScreen);
 
+
+    if (pScrn->hdr_mode !=SCREEN_HDR_MODE_OFF){
+        /* this is bold copy of what `miCreateScreenResources contains without error checking.
+         * Replace pixmap acording HDR mode and mark it as intermediate (BT2020 linear colorspace)*/
+        pScreen->DestroyPixmap(pScreen->GetScreenPixmap(pScreen));
+        rootPixmap = pScreen->CreatePixmap(pScreen, 0, 0, drmmode_get_depth_for_hdr(pScrn->hdr_mode), 0);
+
+        pScreen->ModifyPixmapHeader(rootPixmap,pScreen->width,
+                                               pScreen->height,-1,
+                                               drmmode_get_depth_for_hdr(pScrn->hdr_mode),
+                                               PixmapBytePad(pScreen->width, drmmode_get_depth_for_hdr(pScrn->hdr_mode))
+                                               ,NULL);
+
+        pScreen->SetScreenPixmap(rootPixmap);
+
+        ms->glamor.HdrFlagPixmap_INTERMEDIATE(rootPixmap);
+    };
+
+
     if (!drmmode_set_desired_modes(pScrn, &ms->drmmode, pScrn->is_gpu, FALSE))
         return FALSE;
 
@@ -1713,7 +1751,6 @@ modesetCreateScreenResources(ScreenPtr pScreen)
     }
 
     rootPixmap = pScreen->GetScreenPixmap(pScreen);
-
     if (ms->drmmode.shadow_enable)
         pixels = ms->drmmode.shadow_fb;
 
@@ -1967,7 +2004,6 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     modesettingPtr ms = modesettingPTR(pScrn);
-    VisualPtr visual;
 
     pScrn->pScreen = pScreen;
 
@@ -1989,6 +2025,8 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (!ms->drmmode.gbm) {
         return FALSE;
     }
+
+    ms->drmmode.hdr_mode = pScrn->hdr_mode;
 
     /* HW dependent - FIXME */
     pScrn->displayWidth = pScrn->virtualX;
@@ -2031,7 +2069,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     if (pScrn->bitsPerPixel > 8) {
         /* Fixup RGB ordering */
-        visual = pScreen->visuals + pScreen->numVisuals;
+    VisualPtr visual = pScreen->visuals + pScreen->numVisuals;
         while (--visual >= pScreen->visuals) {
             if ((visual->class | DynamicClass) == DirectColor) {
                 visual->offsetRed = pScrn->offset.red;
@@ -2043,6 +2081,84 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
             }
         }
     }
+
+
+    if (pScrn->hdr_mode != SCREEN_HDR_MODE_OFF){
+        short numVisuals = pScreen->numVisuals + 3;
+        VisualPtr visuals = reallocarray(pScreen->visuals, numVisuals, sizeof(VisualRec));
+
+        pScreen->visuals = visuals;
+        pScreen->numVisuals = numVisuals;
+
+        VisualPtr v = &visuals[numVisuals - 3];
+        v->vid = dixAllocServerXID();
+        v->class = HDRColor;
+        v->offsetBlue  = 0;
+        v->offsetRed   = 16;
+        v->offsetGreen = 24;
+
+        v->blueMask = (uint32_t)0x0000ffff;
+        v->greenMask =(uint32_t)0xffff0000;
+        v->redMask =  (uint32_t)0xffff0000; /* leave some bits for alpha */
+
+        v->bitsPerRGBValue = 16;
+        v->ColormapEntries = 10000; /* that not used here... */
+        v->nplanes = 64;
+
+        pScreen->allowedDepths[7].numVids = 1;
+        pScreen->allowedDepths[7].vids = calloc(1,sizeof(VisualID));
+        pScreen->allowedDepths[7].vids[0] = v->vid;
+
+
+        /* this is 10 bit bgr */
+        v = &visuals[numVisuals - 2];
+        v->vid = dixAllocServerXID();
+        v->class = HDRColor;
+        v->offsetBlue  = 0;
+        v->offsetRed   = 10;
+        v->offsetGreen = 20;
+
+        v->blueMask = 0x3ff;
+        v->greenMask = 0xffc00;
+        v->redMask = (uint32_t)0xffc00000;
+
+        v->bitsPerRGBValue = 10;
+        v->ColormapEntries = 1024; /* do we care at all? */
+        v->nplanes = 32;
+
+
+
+        pScreen->allowedDepths[6].numVids+=1;
+        pScreen->allowedDepths[6].vids = reallocarray(pScreen->allowedDepths[6].vids, pScreen->allowedDepths[6].numVids , sizeof(VisualID));
+        pScreen->allowedDepths[6].vids[pScreen->allowedDepths[6].numVids - 1 ] = v->vid;
+
+
+        /* maybe add 8 bit "HDR" visual - in this case you can set different gamma function for pixel and tell Xserver  to apply transformations */
+
+        v = &visuals[numVisuals - 1];
+        v->vid = dixAllocServerXID();
+        v->class = HDRColor ;
+        v->offsetBlue  = 0;
+        v->offsetRed   = 8;
+        v->offsetGreen = 16;
+
+        v->blueMask = 0xff;
+        v->greenMask = 0xff00;
+        v->redMask = (uint32_t)0xff0000;
+
+        v->bitsPerRGBValue = 8;
+        v->ColormapEntries = 256;
+        v->nplanes = 32;
+
+        pScreen->allowedDepths[6].numVids+=1;
+        pScreen->allowedDepths[6].vids = reallocarray(pScreen->allowedDepths[6].vids, pScreen->allowedDepths[6].numVids , sizeof(VisualID));
+        pScreen->allowedDepths[6].vids[pScreen->allowedDepths[6].numVids - 1 ] = v->vid;
+
+
+
+    }
+
+
 
     fbPictureInit(pScreen, NULL, 0);
 
@@ -2231,6 +2347,19 @@ LeaveVT(ScrnInfoPtr pScrn)
         (ms->pEnt->location.id.plat->flags & XF86_PDEV_SERVER_FD))
         return;
 #endif
+
+
+
+  /* reset HDR metadata */
+
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+
+    for (size_t i = 0; i < xf86_config->num_output; i++) {
+        xf86OutputPtr output = xf86_config->output[i];
+        if (pScrn->hdr_mode != SCREEN_HDR_MODE_OFF){
+            drmmode_crtc_set_colorimetry(output,false, pScrn->pScreen ,i);
+        }
+    }
 
     if (!ms->fd_passed)
         drmDropMaster(ms->fd);

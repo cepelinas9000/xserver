@@ -42,6 +42,9 @@ endif
 
 epoxy_dep = dependency('epoxy')
 
+subdir('hdrext')
+
+
 glamor = static_library('glamor',
     srcs_glamor,
     include_directories: [inc, glx_inc],
@@ -49,4 +52,5 @@ glamor = static_library('glamor',
         common_dep,
         epoxy_dep,
     ],
+    link_with  : [ libxserver_hdrext ],
 )

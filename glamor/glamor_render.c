@@ -40,6 +40,9 @@
 #include "glamor_priv.h"
 #include "mipict.h"
 #include "fbpict.h"
+
+#include "hdrext/hdrext_priv.h"
+
 #if 0
 //#define DEBUGF(str, ...)  do {} while(0)
 #define DEBUGF(str, ...) ErrorF(str, ##__VA_ARGS__)
@@ -65,8 +68,10 @@ static struct blendinfo composite_op_info[] = {
 
 #define RepeatFix			10
 static GLuint
-glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key *key, Bool enable_rel_sampler)
+glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key *key, Bool enable_rel_sampler,HDRPixmapPrivate *srchdr_priv,HDRPixmapPrivate *dsthdr_priv)
 {
+
+    const char *hdr_defines = "";
     const char *repeat_define =
         "#define RepeatNone               	      0\n"
         "#define RepeatNormal                     1\n"
@@ -221,6 +226,14 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         "{\n"
         "	frag_color = dest_swizzle(get_source() * get_mask().a);\n"
         "}\n";
+
+    const char *in_normal_sdr_to_bt2020linear =
+        "void main()\n"
+        "{\n"
+        "	vec4 tmp = dest_swizzle(get_source() * get_mask().a); frag_color  = vec4(rec709_to_bt2020_linear(tmp.rgb),tmp.a);\n"
+        "}\n";
+
+
     const char *in_ca_source =
         "void main()\n"
         "{\n"
@@ -256,7 +269,7 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     const char *in;
     const char *header;
     const char *header_norm = glamor_priv->glsl_version > 120 ?
-        "#version 130\n" :
+        "#version 140\n" :
         glamor_priv->use_gpu_shader4 ?
           "#version 120\n#extension GL_EXT_gpu_shader4 : require\n" GLAMOR_COMPAT_DEFINES_FS :
           "#version 120\n" GLAMOR_COMPAT_DEFINES_FS;
@@ -315,8 +328,14 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
 
     header = glamor_priv->is_gles ? header_es : header_norm;
     switch (key->in) {
-    case glamor_program_alpha_normal:
-        in = in_normal;
+    case glamor_program_alpha_normal:{
+        if (srchdr_priv->purpose == HDR_pixmap_SDR_OR_PASSTHROUGH  &&  dsthdr_priv->purpose == HDR_pixmap_intermiate){
+            in = in_normal_sdr_to_bt2020linear;
+            hdr_defines = "#extension GL_ARB_shading_language_420pack : enable\n#extension GL_EXT_scalar_block_layout : enable\n#extension GL_ARB_shading_language_include: enable\n#extension GL_GOOGLE_include_directive: enable\n#extension GL_ARB_shading_language_include : enable\n#include \"/sdr_fragment_utils.glsl\"\n";
+        } else {
+            in = in_normal;
+        }
+        }
         break;
     case glamor_program_alpha_ca_first:
         in = in_ca_source;
@@ -338,7 +357,7 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     if (asprintf(&source,
                  "%s"
                  GLAMOR_DEFAULT_PRECISION
-                 "%s%s%s%s%s%s%s%s", header, GLAMOR_COMPAT_DEFINES_FS,
+                 "%s%s%s%s%s%s%s%s%s", header, GLAMOR_COMPAT_DEFINES_FS,hdr_defines,
                  repeat_define, relocate_texture,
                  enable_rel_sampler ? rel_sampler : stub_rel_sampler,
                  source_fetch, mask_fetch, dest_swizzle, in) == -1)
@@ -402,7 +421,7 @@ glamor_create_composite_vs(glamor_screen_private* priv, struct shader_key *key)
 
 static void
 glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
-                               glamor_composite_shader *shader)
+                               glamor_composite_shader *shader,HDRPixmapPrivate *srchdr_priv,HDRPixmapPrivate *dsthdr_priv)
 {
     GLuint vs, fs, prog;
     GLint source_sampler_uniform_location, mask_sampler_uniform_location;
@@ -413,7 +432,7 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
     vs = glamor_create_composite_vs(glamor_priv, key);
     if (vs == 0)
         return;
-    fs = glamor_create_composite_fs(glamor_priv, key, enable_rel_sampler);
+    fs = glamor_create_composite_fs(glamor_priv, key, enable_rel_sampler,srchdr_priv,dsthdr_priv);
     if (fs == 0)
         return;
 
@@ -436,7 +455,7 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
         /* Failed to link the shader, try again without rel_sampler. */
         enable_rel_sampler = FALSE;
         glDetachShader(prog, fs);
-        fs = glamor_create_composite_fs(glamor_priv, key, enable_rel_sampler);
+        fs = glamor_create_composite_fs(glamor_priv, key, enable_rel_sampler,srchdr_priv,dsthdr_priv);
         if (fs == 0)
             return;
         glAttachShader(prog, fs);
@@ -482,14 +501,16 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
 static glamor_composite_shader *
 glamor_lookup_composite_shader(ScreenPtr screen, struct
                                shader_key
-                               *key)
+                               *key,
+                               HDRPixmapPrivate *srchdr_priv,HDRPixmapPrivate *dsthdr_priv)
 {
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     glamor_composite_shader *shader;
 
-    shader = &glamor_priv->composite_shader[key->source][key->mask][key->in][key->dest_swizzle];
+
+    shader = &glamor_priv->composite_shader[key->source][key->mask][key->in][key->dest_swizzle][srchdr_priv->purpose][dsthdr_priv->purpose];
     if (shader->prog == 0)
-        glamor_create_composite_shader(screen, key, shader);
+        glamor_create_composite_shader(screen, key, shader,srchdr_priv,dsthdr_priv);
 
     return shader;
 }
@@ -904,7 +925,10 @@ glamor_composite_choose_shader(CARD8 op,
                                glamor_composite_shader ** shader,
                                struct blendinfo *op_info,
                                pixman_format_code_t *psaved_source_format,
-                               enum ca_state ca_state)
+                               enum ca_state ca_state,
+                              HDRPixmapPrivate *srchdr_priv,
+                              HDRPixmapPrivate *dsthdr_priv
+                               )
 {
     ScreenPtr screen = dest->pDrawable->pScreen;
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
@@ -1126,7 +1150,8 @@ glamor_composite_choose_shader(CARD8 op,
         goto fail;
     }
 
-    *shader = glamor_lookup_composite_shader(screen, &key);
+    *shader = glamor_lookup_composite_shader(screen, &key,srchdr_priv,dsthdr_priv);
+
     if ((*shader)->prog == 0) {
         glamor_fallback("no shader program for this render acccel mode\n");
         goto fail;
@@ -1222,7 +1247,10 @@ glamor_composite_with_shader(CARD8 op,
                              glamor_pixmap_private *mask_pixmap_priv,
                              glamor_pixmap_private *dest_pixmap_priv,
                              int nrect, glamor_composite_rect_t *rects,
-                             enum ca_state ca_state)
+                             enum ca_state ca_state,
+                              HDRPixmapPrivate *srchdr_priv,
+                              HDRPixmapPrivate *dsthdr_priv
+)
 {
     ScreenPtr screen = dest->pDrawable->pScreen;
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
@@ -1246,7 +1274,7 @@ glamor_composite_with_shader(CARD8 op,
                                         source_pixmap_priv, mask_pixmap_priv,
                                         dest_pixmap_priv,
                                         &key, &shader, &op_info,
-                                        &saved_source_format, ca_state)) {
+                                        &saved_source_format, ca_state,srchdr_priv,dsthdr_priv)) {
         glamor_fallback("glamor_composite_choose_shader failed\n");
         goto fail;
     }
@@ -1256,13 +1284,15 @@ glamor_composite_with_shader(CARD8 op,
                                             source_pixmap_priv,
                                             mask_pixmap_priv, dest_pixmap_priv,
                                             &key_ca, &shader_ca, &op_info_ca,
-                                            &saved_source_format, ca_state)) {
+                                            &saved_source_format, ca_state,srchdr_priv,dsthdr_priv)) {
             glamor_fallback("glamor_composite_choose_shader failed\n");
             goto fail;
         }
     }
 
     glamor_make_current(glamor_priv);
+
+
 
     if (ca_state != CA_TWO_PASS &&
         key.dest_swizzle == SHADER_DEST_SWIZZLE_DEFAULT &&
@@ -1305,6 +1335,22 @@ glamor_composite_with_shader(CARD8 op,
             glamor_picture_get_matrixf(mask, pmask_matrix);
         }
     }
+
+    if (srchdr_priv->purpose == HDR_pixmap_SDR_OR_PASSTHROUGH && dsthdr_priv->purpose == HDR_pixmap_intermiate){
+            HDRScreenPrivateData *hdrscrpriv = dixLookupPrivate(&screen->devPrivates, HdrScrPrivateKey);
+            GLuint params_ubo =  hdrscrpriv->default_sdr_params_ubo;
+
+            if (source->wnd){
+                HDRExtWindowPrivate *priv = dixLookupPrivate(&source->wnd->devPrivates, HdrWinPrivateKey);
+                if (priv->sdr_params_u){
+                     params_ubo = priv->sdr_params_u;
+                }
+            }
+
+        glBindBufferBase(GL_UNIFORM_BUFFER ,3, params_ubo);
+
+    }
+
 
     nrect_max = MIN(nrect, GLAMOR_COMPOSITE_VBO_VERT_CNT / 4);
 
@@ -1513,6 +1559,13 @@ glamor_composite_clipped_region(CARD8 op,
     glamor_pixmap_private *source_pixmap_priv = glamor_get_pixmap_private(source_pixmap);
     glamor_pixmap_private *mask_pixmap_priv = glamor_get_pixmap_private(mask_pixmap);
     glamor_pixmap_private *dest_pixmap_priv = glamor_get_pixmap_private(dest_pixmap);
+
+
+    HDRPixmapPrivate empty_hdr = { 0 }; /* saves multiple null  checks */
+
+    HDRPixmapPrivate *srchdr_priv = source_pixmap ? dixLookupPrivate(&source_pixmap->devPrivates, HdrPixPrivateKey) : &empty_hdr;
+    HDRPixmapPrivate *dsthdr_priv = dest_pixmap ?  dixLookupPrivate(&dest_pixmap->devPrivates, HdrPixPrivateKey)  : &empty_hdr;
+
     glamor_screen_private *glamor_priv = glamor_get_screen_private(dest_pixmap->drawable.pScreen);
     ScreenPtr screen = dest->pDrawable->pScreen;
     PicturePtr temp_src = source, temp_mask = mask;
@@ -1690,7 +1743,7 @@ glamor_composite_clipped_region(CARD8 op,
                                           temp_src_pixmap, temp_mask_pixmap, dest_pixmap,
                                           temp_src_priv, temp_mask_priv,
                                           dest_pixmap_priv,
-                                          box_cnt, prect, ca_state);
+                                          box_cnt, prect, ca_state,srchdr_priv,dsthdr_priv);
         if (!ok)
             break;
         nbox -= box_cnt;

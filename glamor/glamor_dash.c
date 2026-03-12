@@ -158,9 +158,9 @@ glamor_dash_setup(DrawablePtr drawable, GCPtr gc)
 
     switch (gc->lineStyle) {
     case LineOnOffDash:
-        prog = glamor_use_program_fill(drawable, gc,
+        prog = glamor_use_program_fill(drawable, pixmap, gc,
                                        &glamor_priv->on_off_dash_line_progs,
-                                       &glamor_facet_on_off_dash_lines);
+                                       &glamor_facet_on_off_dash_lines, glamor_program_colorspace_intact);
         if (!prog)
             goto bail;
         break;

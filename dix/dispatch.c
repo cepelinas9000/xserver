@@ -156,7 +156,7 @@ Equipment Corporation.
 
 xConnSetupPrefix connSetupPrefix;
 
-PaddingInfo PixmapWidthPaddingInfo[33];
+PaddingInfo PixmapWidthPaddingInfo[129];
 
 static ClientPtr grabClient;
 static ClientPtr currentClient; /* Client for the request currently being dispatched */
@@ -1036,7 +1036,7 @@ ProcGetGeometry(ClientPtr client)
 
     xGetGeometryReply reply = {
         .root = pDraw->pScreen->root->drawable.id,
-        .depth = pDraw->depth,
+        .depth = client->latch_is_set ? client->latched_depth : pDraw->depth, /** XXX: !!! **/
         .width = pDraw->width,
         .height = pDraw->height,
     };
@@ -1101,6 +1101,75 @@ ProcQueryTree(ClientPtr client)
 
     return X_SEND_REPLY_WITH_RPCBUF(client, reply, rpcbuf);
 }
+
+/** @brief Latches
+ *   @{ */
+
+/* I keep it here
+
+void latch_visual(xcb_connection_t *conn, xcb_visualid_t visual, uint8_t depth){
+
+
+  xcb_protocol_request_t proto_req = {
+        .count = 1,
+        .ext = NULL,
+        .opcode = 125,
+        .isvoid = 1
+    };
+
+    uint32_t buffer[8]; // remainder after req is 7 CARD32 words
+    memset(buffer,0,sizeof(buffer));
+
+    buffer[0] = ((uint32_t)depth) << 8;
+    buffer[1] = 0x55aa55aa ; // wid field
+    buffer[2] = 0xffffffff; // parent field
+    buffer[6] = visual; // visual field
+
+   struct iovec vec[1] = { { .iov_base = buffer, .iov_len = sizeof(buffer)} };
+   xcb_send_request(conn, 0, vec, &proto_req);
+
+}
+
+
+*/
+
+int
+XXXProcLatchUnlatchVisual(ClientPtr client){ /* opcode 125 */
+
+
+    REQUEST(xCreateWindowReq);
+    REQUEST_SIZE_MATCH(xCreateWindowReq);
+
+    if (stuff->wid != 0x55aa55aa || stuff->parent != 0xffffffff){
+      return BadMatch;
+    }
+
+    if (stuff->depth == 0 && stuff->visual == 0){ /* unlatching */
+        if (!client->latch_is_set){
+            return BadAccess;
+        }
+        client->latch_is_set = false;
+    } else {
+
+        if (client->latch_is_set){
+            return BadAccess;
+        }
+
+        if (stuff->depth == 0 || stuff->visual == 0) {
+            return BadMatch;
+        }
+
+        client->latch_is_set = true;
+        client->latched_depth = stuff->depth;
+        client->latched_visualid = stuff->visual;
+        client->latched_bpp  = stuff->mask;
+    }
+
+    return Success;
+}
+
+
+/** @} */
 
 int
 ProcInternAtom(ClientPtr client)
@@ -3989,22 +4058,24 @@ dixMarkClientException(ClientPtr client)
 {
     client->noClientException = -1;
 }
-
+// XXX: these contant tables need to be revised as our bit depth are in 128 order
 /*
  * This array encodes the answer to the question "what is the log base 2
  * of the number of pixels that fit in a scanline pad unit?"
  * Note that ~0 is an invalid entry (mostly for the benefit of the reader).
  */
-static const int answer[6][4] = {
-    /* pad   pad   pad     pad */
-    /*  8     16    32    64 */
+static const int answer[8][6] = {
+    /* pad   pad   pad     pad  pad*/
+    /*  8     16    32    64    128*/
 
-    {3, 4, 5, 6},               /* 1 bit per pixel */
-    {1, 2, 3, 4},               /* 4 bits per pixel */
-    {0, 1, 2, 3},               /* 8 bits per pixel */
-    {~0, 0, 1, 2},              /* 16 bits per pixel */
-    {~0, ~0, 0, 1},             /* 24 bits per pixel */
-    {~0, ~0, 0, 1}              /* 32 bits per pixel */
+    { 3,  4,  5,  6, 7},   /* 1 bit per pixel */
+    { 1,  2,  3,  4, 5},   /* 4 bits per pixel */
+    { 0,  1,  2,  3, 4},   /* 8 bits per pixel */
+    {~0,  0,  1,  2, 3},   /* 16 bits per pixel */
+    {~0, ~0,  0,  1, 2},   /* 24 bits per pixel */
+    {~0, ~0,  0,  1, 2},   /* 32 bits per pixel */
+    {~0, ~0, ~0,  0, 1},   /* 64 bits per pixel */
+    {~0, ~0, ~0, ~0, 0},   /* 128 bits per pixel */
 };
 
 /*
@@ -4012,7 +4083,7 @@ static const int answer[6][4] = {
  * the answer array above given the number of bits per pixel?"
  * Note that ~0 is an invalid entry (mostly for the benefit of the reader).
  */
-static const int indexForBitsPerPixel[33] = {
+static const int indexForBitsPerPixel[129] = {
     ~0, 0, ~0, ~0,              /* 1 bit per pixel */
     1, ~0, ~0, ~0,              /* 4 bits per pixel */
     2, ~0, ~0, ~0,              /* 8 bits per pixel */
@@ -4021,14 +4092,19 @@ static const int indexForBitsPerPixel[33] = {
     ~0, ~0, ~0, ~0,
     4, ~0, ~0, ~0,              /* 24 bits per pixel */
     ~0, ~0, ~0, ~0,
-    5                           /* 32 bits per pixel */
+    5 , ~0, ~0, ~0,            /* 32 bits per pixel */
+    ~0, ~0, ~0, ~0,
+    ~0, ~0, ~0, ~0,
+    ~0, ~0, ~0, ~0,
+    ~0, ~0, ~0, ~0,
+
 };
 
 /*
  * This array gives the bytesperPixel value for cases where the number
  * of bits per pixel is a multiple of 8 but not a power of 2.
  */
-static const int answerBytesPerPixel[33] = {
+static const int answerBytesPerPixel[129] = {
     ~0, 0, ~0, ~0,              /* 1 bit per pixel */
     0, ~0, ~0, ~0,              /* 4 bits per pixel */
     0, ~0, ~0, ~0,              /* 8 bits per pixel */
@@ -4045,7 +4121,7 @@ static const int answerBytesPerPixel[33] = {
  * the answer array above given the number of bits per scanline pad unit?"
  * Note that ~0 is an invalid entry (mostly for the benefit of the reader).
  */
-static const int indexForScanlinePad[65] = {
+static const int indexForScanlinePad[129] = {
     ~0, ~0, ~0, ~0,
     ~0, ~0, ~0, ~0,
     0, ~0, ~0, ~0,              /* 8 bits per scanline pad unit */

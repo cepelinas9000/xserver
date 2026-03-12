@@ -1377,6 +1377,7 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
             }
             pWin->overrideRedirect = val;
             break;
+
         case CWColormap:
             cmap = (Colormap) * pVlist;
             pVlist++;
@@ -1400,6 +1401,19 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
                 client->errorValue = cmap;
                 goto PatchUp;
             }
+
+            if (client->latch_is_set){
+
+              /* XXX: set window visual from color map */
+              if (pWin->optional == NULL){
+                  MakeWindowOptional(pWin);
+              }
+
+              pWin->optional->visual = pCmap->pVisual->vid;
+              pWin->drawable.depth = pCmap->pVisual->nplanes; /* currently nplanes is bit depth */
+              pWin->drawable.bitsPerPixel = pCmap->pVisual->nplanes;
+            }
+
             if (pCmap->pVisual->vid != wVisual(pWin) ||
                 pCmap->pScreen != pScreen) {
                 error = BadMatch;
@@ -1593,7 +1607,7 @@ ProcGetWindowAttributes(ClientPtr client)
         .allEventMasks = pWin->eventMask | wOtherEventMasks(pWin),
         .doNotPropagateMask = wDontPropagateMask(pWin),
         .class = pWin->drawable.class,
-        .visualID = wVisual(pWin),
+        .visualID = client->latch_is_set ? client->latched_visualid : wVisual(pWin),
     };
 
     if (client->swapped) {

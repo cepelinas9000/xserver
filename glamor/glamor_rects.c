@@ -27,6 +27,18 @@
 #include "glamor_program.h"
 #include "glamor_transform.h"
 
+#include "hdrext/hdrext_priv.h"
+
+static const glamor_facet glamor_facet_polyfillrect_320 = {
+    .name = "poly_fill_rect",
+    .version = 320,
+    .source_name = "size",
+    .vs_vars = "in vec2 primitive;\n"
+               "in vec2 size;\n",
+    .vs_exec = ("       vec2 pos = size * vec2(gl_VertexID&1, (gl_VertexID&2)>>1);\n"
+                GLAMOR_POS(gl_Position, (primitive.xy + pos))),
+};
+
 static const glamor_facet glamor_facet_polyfillrect_130 = {
     .name = "poly_fill_rect",
     .version = 130,
@@ -36,6 +48,7 @@ static const glamor_facet glamor_facet_polyfillrect_130 = {
     .vs_exec = ("       vec2 pos = size * vec2(gl_VertexID&1, (gl_VertexID&2)>>1);\n"
                 GLAMOR_POS(gl_Position, (primitive.xy + pos))),
 };
+
 
 static const glamor_facet glamor_facet_polyfillrect_120 = {
     .name = "poly_fill_rect",
@@ -60,6 +73,8 @@ glamor_poly_fill_rect_gl(DrawablePtr drawable,
     Bool ret = FALSE;
     BoxRec bounds = glamor_no_rendering_bounds();
 
+    HDR_conversion_e hdr_conversion = hdr_pick_conversion(drawable,&pixmap->drawable);
+
     pixmap_priv = glamor_get_pixmap_private(pixmap);
     if (!GLAMOR_PIXMAP_PRIV_HAS_FBO(pixmap_priv))
         goto bail;
@@ -73,9 +88,19 @@ glamor_poly_fill_rect_gl(DrawablePtr drawable,
     }
 
     if (glamor_glsl_has_ints(glamor_priv)) {
-        prog = glamor_use_program_fill(drawable, gc,
-                                       &glamor_priv->poly_fill_rect_program,
-                                       &glamor_facet_polyfillrect_130);
+
+        if (hdr_conversion == HDR_conversion_no_need){
+            prog = glamor_use_program_fill(drawable, pixmap, gc,
+                                           &glamor_priv->poly_fill_rect_program,
+                                           &glamor_facet_polyfillrect_130, glamor_program_colorspace_intact);
+
+        } else {
+            prog = glamor_use_program_fill(drawable, pixmap, gc,
+                                           &glamor_priv->poly_fill_rect_program_sdr_to_bt2020_linear,
+                                           &glamor_facet_polyfillrect_320, glamor_program_colorspace_sdr_to_bt2020linear);
+            hdr_setglprogram_params(screen,&glamor_priv->poly_fill_rect_program_sdr_to_bt2020_linear.progs[gc->fillStyle], drawable,&pixmap->drawable,hdr_conversion);
+
+        }
 
         if (!prog)
             goto bail;
@@ -100,9 +125,9 @@ glamor_poly_fill_rect_gl(DrawablePtr drawable,
     } else {
         int n;
 
-        prog = glamor_use_program_fill(drawable, gc,
+        prog = glamor_use_program_fill(drawable, pixmap, gc,
                                        &glamor_priv->poly_fill_rect_program,
-                                       &glamor_facet_polyfillrect_120);
+                                       &glamor_facet_polyfillrect_120, glamor_program_colorspace_intact);
 
         if (!prog)
             goto bail;

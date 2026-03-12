@@ -34,6 +34,9 @@
 #include "libudev.h"
 #endif
 
+#include "xf86Crtc.h"
+
+
 #include <gbm.h>
 
 enum drmmode_plane_property {
@@ -132,6 +135,8 @@ typedef struct {
     Bool use_ctm;
 
     Bool pending_modeset;
+    ScreenHDRMode hdr_mode;
+    
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
@@ -276,6 +281,10 @@ typedef struct {
     xf86CrtcPtr current_crtc;
     Atom ctm_atom;
     struct drm_color_ctm ctm;
+
+    bool hdr_active;
+    int conector_HDR_OUTPUT_METADATA_id;
+
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 typedef struct {
@@ -359,4 +368,60 @@ uint32_t
 get_modifiers_set(ScrnInfoPtr scrn, uint32_t format, uint64_t **modifiers,
                   Bool enabled_crtc_only, Bool exclude_multiplane, Bool async_flip);
 #endif
+
+
+/*
+ Colormetry helper functions for DRM, kindly taken from Weston and gamescope:
+ https://gitlab.freedesktop.org/wayland/weston/-/blob/main/libweston/backend-drm/kms-color.c
+ https://github.com/ValveSoftware/gamescope/blob/master/src/color_helpers.h
+
+ Licensed under MIT.
+
+*/
+static inline uint16_t
+hdr_color_xy_to_u16(float v)
+{
+    /*
+    assert(v >= 0.0f);
+    assert(v <= 1.0f);
+    */
+
+    v = v < 0 ? 0 : v;
+    v = v > 1 ? 1 : v;
+
+    /* CTA-861-G
+       6.9.1 Static Metadata Type 1
+       chromaticity coordinate encoding
+    */
+    float val = roundf(v * 50000.0f);   /* otherwie gcc complains with -Wbad-function-cast */
+    return (uint16_t)(val);
+}
+
+static inline float
+hdr_color_xy_from_u16(uint16_t v)
+{
+    return v / 50000.0f;
+}
+
+#define HDMI_EOTF_ST2084 2
+/**
+ * @brief drmmode_crtc_set_hdr_static_metadata_v1 just sets hdr_output_metadata property
+ * note: it need be independet function - dynamic hdr, full screen exclusive, settings changed later
+ * @param drmmode_output
+ * @param hdr_metadata if null - clears it
+**/
+void drmmode_crtc_set_hdr_static_metadata_v1(drmmode_output_private_ptr drmmode_output,struct hdr_output_metadata *hdr_metadata);
+
+/**
+ * @brief drmmode_crtc_set_colorimetry set all colorimetry attributes to enable HDR signal
+ * currently:
+ *  - (connector) HDR_OUTPUT_METADATA from edid (EOTF: SMPTE ST 2084 (PQ), white points, limits)
+ *  - (connector) Colorspace BT2020_RGB
+ * @param drmmode_output
+ * @return false if false on failure
+**/
+bool drmmode_crtc_set_colorimetry(xf86OutputPtr output, bool enable, ScreenPtr screen,int crtc_num);
+
+
+
 #endif

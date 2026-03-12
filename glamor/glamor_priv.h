@@ -77,6 +77,8 @@
 
 #include <list.h>
 
+#include "hdrext/hdrext.h"
+
 struct glamor_pixmap_private;
 
 typedef struct glamor_composite_shader {
@@ -254,17 +256,19 @@ typedef struct glamor_screen_private {
      * supported pixel formats, including these that are not supported on GL side
      * directly, but are converted to another format instead.
      */
-    struct glamor_format formats[33];
+    struct glamor_format formats[65];
     struct glamor_format cbcr_format;
 
     /* glamor point shader */
     glamor_program point_prog;
+    glamor_program point_prog_sdr_to_bt2020_linear;
 
     /* glamor spans shaders */
     glamor_program_fill fill_spans_program;
 
     /* glamor rect shaders */
     glamor_program_fill poly_fill_rect_program;
+    glamor_program_fill poly_fill_rect_program_sdr_to_bt2020_linear;
 
     /* glamor glyphblt shaders */
     glamor_program_fill poly_glyph_blt_progs;
@@ -273,6 +277,11 @@ typedef struct glamor_screen_private {
     glamor_program_fill poly_text_progs;
     glamor_program      te_text_prog;
     glamor_program      image_text_prog;
+
+    /* glamor text shader for sdr to bt2020 linear */
+    glamor_program_fill poly_text_progs_sdr_to_bt2020_linear;
+    glamor_program      te_text_prog_sdr_to_bt2020_linear;
+    glamor_program      image_text_prog_sdr_to_bt2020_linear;
 
     /* glamor copy shaders */
     glamor_program      copy_area_prog;
@@ -324,7 +333,9 @@ typedef struct glamor_screen_private {
     glamor_composite_shader composite_shader[SHADER_SOURCE_COUNT]
         [SHADER_MASK_COUNT]
         [glamor_program_alpha_count]
-        [SHADER_DEST_SWIZZLE_COUNT];
+        [SHADER_DEST_SWIZZLE_COUNT]
+        [HDR_pixmap_purpose_COUNT] /** XXX: HDR this one asking for refactor */
+        [HDR_pixmap_purpose_COUNT];
 
     /* glamor gradient, 0 for small nstops, 1 for
        large nstops and 2 for dynamic generate. */

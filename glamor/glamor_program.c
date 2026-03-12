@@ -38,6 +38,14 @@ const glamor_facet glamor_fill_solid = {
     .use = use_solid,
 };
 
+const glamor_facet glamor_fill_solid_sdr_bt2020linear = {
+    .name = "solid_sdr_bt2020linear",
+    .fs_extensions ="#extension GL_GOOGLE_include_directive: enable\n#extension GL_ARB_shading_language_include : enable\n#include \"/sdr_fragment_utils.glsl\"\n",
+    .fs_exec = "       frag_color = vec4(rec709_to_bt2020_linear(fg.rgb), fg.a);\n",
+    .locations = glamor_program_location_fg,
+    .use = use_solid,
+};
+
 static Bool
 use_tile(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
@@ -51,6 +59,17 @@ static const glamor_facet glamor_fill_tile = {
     .locations = glamor_program_location_fillsamp | glamor_program_location_fillpos,
     .use = use_tile,
 };
+
+static const glamor_facet glamor_fill_tile_sdr_bt2020linear = {
+    .name = "tile",
+    .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
+    .fs_extensions ="#extension GL_GOOGLE_include_directive: enable\n#extension GL_ARB_shading_language_include : enable\n#include \"/sdr_fragment_utils.glsl\"\n",
+    .fs_exec =  "       vec4 t = texture(sampler, fill_pos);\n        frag_color = vec4(rec709_to_bt2020_linear(t.rgb), t.a);\n",
+    .locations = glamor_program_location_fillsamp | glamor_program_location_fillpos,
+    .use = use_tile,
+};
+
+
 
 static Bool
 use_stipple(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
@@ -70,6 +89,19 @@ static const glamor_facet glamor_fill_stipple = {
     .locations = glamor_program_location_fg | glamor_program_location_fillsamp | glamor_program_location_fillpos,
     .use = use_stipple,
 };
+
+static const glamor_facet glamor_fill_stipple_sdr_bt2020linear = {
+    .name = "stipple",
+    .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
+    .fs_extensions ="#extension GL_GOOGLE_include_directive: enable\n#extension GL_ARB_shading_language_include : enable\n#include \"/sdr_fragment_utils.glsl\"\n",
+    .fs_exec = ("       float a = texture(sampler, fill_pos).w;\n"
+                "       if (a == 0.0)\n"
+                "               discard;\n"
+                "       frag_color = vec4(rec709_to_bt2020_linear(fg), 1.0);\n"),
+    .locations = glamor_program_location_fg | glamor_program_location_fillsamp | glamor_program_location_fillpos,
+    .use = use_stipple,
+};
+
 
 static Bool
 use_opaque_stipple(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
@@ -92,12 +124,36 @@ static const glamor_facet glamor_fill_opaque_stipple = {
     .use = use_opaque_stipple
 };
 
+static const glamor_facet glamor_fill_opaque_stipple_sdr_bt2020linear  = {
+    .name = "opaque_stipple",
+    .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
+    .fs_extensions ="#extension GL_GOOGLE_include_directive: enable\n#extension GL_ARB_shading_language_include : enable\n#include \"/sdr_fragment_utils.glsl\"\n",
+    .fs_exec = ("       float a = texture(sampler, fill_pos).w;\n"
+                "       if (a == 0.0)\n"
+                "               frag_color = vec4(rec709_to_bt2020_linear(bg), 1.0);\n"
+                "       else\n"
+                "               frag_color = vec4(rec709_to_bt2020_linear(fg), 1.0);\n"),
+    .locations = glamor_program_location_fg | glamor_program_location_bg | glamor_program_location_fillsamp | glamor_program_location_fillpos,
+    .use = use_opaque_stipple
+};
+
+
+
 static const glamor_facet *glamor_facet_fill[4] = {
     &glamor_fill_solid,
     &glamor_fill_tile,
     &glamor_fill_stipple,
     &glamor_fill_opaque_stipple,
 };
+
+/* to much permutations to be in hdrext sources */
+static const glamor_facet *glamor_facet_fill_sdr_bt2020linear[4] = {
+    &glamor_fill_solid_sdr_bt2020linear,
+    &glamor_fill_tile_sdr_bt2020linear,
+    &glamor_fill_stipple_sdr_bt2020linear,
+    &glamor_fill_opaque_stipple_sdr_bt2020linear,
+};
+
 
 typedef struct {
     glamor_program_location     location;
@@ -284,7 +340,7 @@ glamor_build_program(ScreenPtr          screen,
     if (version > glamor_priv->glsl_version) {
         if (version == 130 && !glamor_priv->use_gpu_shader4)
             goto fail;
-        else {
+        else if (version < 310) {
             version = 120;
             gpu_shader4 = TRUE;
         }
@@ -307,7 +363,7 @@ glamor_build_program(ScreenPtr          screen,
 
     if (version) {
         if (asprintf(&version_string, "#version %d %s\n", version,
-                     glamor_priv->is_gles && version > 100 ? "es" : "") < 0)
+                     ((glamor_priv->is_gles && version > 100) || version > 310) ? "es" : "") < 0) /* XXX: brute force, but works ... */
             version_string = NULL;
         if (!version_string)
             goto fail;
@@ -429,12 +485,25 @@ glamor_use_program(DrawablePtr          drawable,
     return TRUE;
 }
 
+/**
+ * @brief glamor_use_program_fill
+ * @param drawable
+ * @param dst_backing real pixmap where pixels will be put
+ * @param gc
+ * @param program_fill
+ * @param prim
+ * @return
+ */
 glamor_program *
 glamor_use_program_fill(DrawablePtr             drawable,
+                        PixmapPtr               dst_backing,
                         GCPtr                   gc,
                         glamor_program_fill     *program_fill,
-                        const glamor_facet      *prim)
+                        const glamor_facet      *prim, glamor_program_colorspace colors_transform)
 {
+
+
+
     ScreenPtr                   screen = drawable->pScreen;
     glamor_program              *prog = &program_fill->progs[gc->fillStyle];
 
@@ -445,7 +514,11 @@ glamor_use_program_fill(DrawablePtr             drawable,
         return FALSE;
 
     if (!prog->prog) {
-        fill = glamor_facet_fill[fill_style];
+        if (colors_transform == glamor_program_colorspace_sdr_to_bt2020linear){
+            fill = glamor_facet_fill_sdr_bt2020linear[fill_style];
+        } else {
+            fill = glamor_facet_fill[fill_style];
+        }
         if (!fill)
             return NULL;
 

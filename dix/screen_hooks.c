@@ -33,6 +33,9 @@ DECLARE_HOOK_PROC(PixmapDestroy, hookPixmapDestroy, XorgScreenPixmapDestroyProcP
 DECLARE_HOOK_PROC(PostCreateResources, hookPostCreateResources,
                   XorgScreenPostCreateResourcesProcPtr)
 
+DECLARE_HOOK_PROC(HDRImportPixmap,hookHDRImportPixmap,
+                  XorgScreenHDRImportPixmapProcPtr)
+
 int dixScreenRaiseWindowDestroy(WindowPtr pWin)
 {
     if (!pWin)

@@ -73,8 +73,14 @@ typedef Bool (*GetDrawableModifiersFuncPtr) (DrawablePtr draw,
                                  | GLAMOR_NO_RENDER_ACCEL)
 
 /* until we need geometry shaders GL3.1 should suffice. */
+/*
 #define GLAMOR_GL_CORE_VER_MAJOR 3
 #define GLAMOR_GL_CORE_VER_MINOR 1
+*/
+
+/** XXX: I didn't check which minimum version required for include to work- opengl 4.6 core profile almost 10 year already */
+#define GLAMOR_GL_CORE_VER_MAJOR 4
+#define GLAMOR_GL_CORE_VER_MINOR 6
 
 /* @glamor_init: Initialize glamor internal data structure.
  *
