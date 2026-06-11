@@ -103,6 +103,10 @@ typedef struct dri3_syncobj *(*dri3_import_syncobj_proc) (ClientPtr client,
                                                           XID id,
                                                           int fd);
 
+typedef char* (*dri3_client_get_vendor_library)(ClientPtr client,
+                                                   ScreenPtr scren,
+                                                   RRProviderPtr provider);
+
 typedef struct dri3_screen_info {
     uint32_t                    version;
 
@@ -122,6 +126,9 @@ typedef struct dri3_screen_info {
 
     /* Version 4 */
     dri3_import_syncobj_proc    import_syncobj;
+
+    /* Version 5 */
+    dri3_client_get_vendor_library vendor_library; //! universal method get vendor library name
 
 } dri3_screen_info_rec, *dri3_screen_info_ptr;
 

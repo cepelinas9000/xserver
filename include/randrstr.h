@@ -164,6 +164,13 @@ struct _rrProvider {
     Bool changed;
     struct _rrProvider *offload_sink;
     struct _rrProvider *output_source;
+
+    /** added for xDRI3GetDeviceUserPreferencesReq **/
+    Bool drmDevice;
+    uint32_t drmMajor;
+    uint32_t drmMinor;
+    char *friendlyName;
+
 };
 
 typedef struct _rrMonitorGeometry {

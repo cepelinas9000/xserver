@@ -32,6 +32,9 @@
 
 #include "dri3_priv.h"
 #include "Xext/sync/syncsrv.h"
+#include "xlibreEXT/dri3xlibreproto.h"
+#include "xf86.h"
+
 #include <xace.h>
 #include <protocol-versions.h>
 #include <drm_fourcc.h>
@@ -647,6 +650,112 @@ proc_dri3_free_syncobj(ClientPtr client)
     return Success;
 }
 
+static void write_gpu_UserPreferencesGPUDevice(x_rpcbuf_t *rpcbuf,ScreenPtr scr,ClientPtr client){
+
+    xDRI3GetDeviceUserPreferencesGPUDevice reply = { 0 };
+
+
+    rrScrPrivPtr pScrPriv = rrGetScrPriv(scr);
+    RRProviderPtr pp = pScrPriv->provider;
+
+    reply.provider = pp->id;
+    reply.provider_name_len = pad_to_int32(pScrPriv->provider->nameLength+1);
+
+    if (pp->drmDevice){
+        reply.drmMajor = pp->drmMajor;
+        reply.drmMinor = pp->drmMinor;
+    } else {
+        reply.struct_flags |= xDRI3GetDeviceUserPreferences_struct_flag_NOTDRM;
+    }
+
+    if (scr->current_primary == NULL){ /* primary screen - mark as desktop render, XXX: maybe someday for cases when there "no penalty" allow multiple devices */
+        reply.struct_flags |=   xDRI3GetDeviceUserPreferences_flag_DESKTOPRENDER;
+    }
+
+
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(scr);
+
+    BusRec br = xf86EntityGetBusAddress(pScrn->entityList[0]);
+
+    char device_location_buf[64] = {0};
+    int device_location_buf_len = 0;
+    if (br.type == BUS_PCI){
+        device_location_buf_len = snprintf(device_location_buf,63,"pci-%04x:%02x:%02x.%d",br.id.pci->domain,br.id.pci->bus,br.id.pci->dev,br.id.pci->func);
+        reply.device_location_len = pad_to_int32(device_location_buf_len + 1);
+    };
+
+
+    reply.device_friendly_name_len =pad_to_int32(pScrPriv->provider->nameLength+1);
+
+
+    reply.vendor_name_offset = bytes_to_int32(sizeof(xDRI3GetDeviceUserPreferencesGPUDevice));
+    reply.provider_name_offset = reply.vendor_name_offset + reply.vendor_name_len;
+    reply.device_location_offset = reply.provider_name_offset + reply.provider_name_len;
+    reply.device_friendly_name_offset = reply.device_location_offset + reply.device_location_len;
+
+    X_REPLY_FIELD_CARD32(length);
+    X_REPLY_FIELD_CARD32(struct_flags);
+    X_REPLY_FIELD_CARD32(provider);
+
+    X_REPLY_FIELD_CARD32(drmMajor);
+    X_REPLY_FIELD_CARD32(drmMinor);
+
+    X_REPLY_FIELD_CARD32(vendor_name_len);
+    X_REPLY_FIELD_CARD32(provider_name_len);
+    X_REPLY_FIELD_CARD32(device_location_len);
+    X_REPLY_FIELD_CARD32(device_friendly_name_len);
+
+    X_REPLY_FIELD_CARD32(pad); /* XXX pad XXX */
+
+    X_REPLY_FIELD_CARD64(flags); /* XXX pad XXX */
+    X_REPLY_FIELD_CARD64(prefer); /* XXX pad XXX */
+
+
+
+
+}
+
+
+static int
+proc_dri3_get_device_user_preferences(ClientPtr client)
+{
+    X_REQUEST_HEAD_STRUCT(xDRI3GetDeviceUserPreferencesReq);
+    X_REQUEST_FIELD_CARD32(flags);
+    X_REQUEST_FIELD_CARD32(drawable);
+
+    DrawablePtr drawable;
+
+    int status = dixLookupDrawable(&drawable, stuff->drawable, client, 0, DixGetAttrAccess);
+    if (status != Success)
+        return status;
+
+    x_rpcbuf_t rpcbuf = { .swapped = client->swapped, .err_clear = TRUE };
+
+
+    int num_devices = 1;
+
+    ScreenPtr p = drawable->pScreen;
+    write_gpu_UserPreferencesGPUDevice(&rpcbuf,p,client);
+
+    ScreenPtr secondary;
+    xorg_list_for_each_entry(secondary, &p->secondary_list, secondary_head) {
+        if (!secondary->is_offload_secondary){
+            continue;
+        }
+        num_devices++;
+        write_gpu_UserPreferencesGPUDevice(&rpcbuf,p,client);
+    }
+
+
+    xDRI3GetDeviceUserPreferencesReply reply = {
+        .num_devices = num_devices,
+    };
+
+    X_REPLY_FIELD_CARD32(num_devices);
+
+    return Success;
+}
+
 int
 proc_dri3_dispatch(ClientPtr client)
 {
@@ -685,6 +794,12 @@ proc_dri3_dispatch(ClientPtr client)
             return proc_dri3_import_syncobj(client);
         case xDRI3FreeSyncobj:
             return proc_dri3_free_syncobj(client);
+
+        /* v1.5 XLibre*/
+
+        case xDRI3GetDeviceUserPreferences:
+            return proc_dri3_get_device_user_preferences(client);
+
         default:
             return BadRequest;
     }

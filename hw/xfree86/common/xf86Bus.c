@@ -574,6 +574,13 @@ xf86IsEntityShared(int entityIndex)
     return FALSE;
 }
 
+BusRec
+xf86EntityGetBusAddress(int entityIndex){
+    if (entityIndex < xf86NumEntities) {
+        return xf86Entities[entityIndex]->bus;
+    }
+    return (BusRec){ 0};
+}
 void
 xf86SetEntityShared(int entityIndex)
 {

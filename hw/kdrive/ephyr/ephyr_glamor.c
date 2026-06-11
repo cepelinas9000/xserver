@@ -108,6 +108,7 @@ ephyr_glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx
     glamor_ctx->ctx = ephyr_glamor->ctx;
     glamor_ctx->surface = ephyr_glamor->egl_win;
     glamor_ctx->make_current = glamor_egl_make_current;
+
 }
 
 static GLuint

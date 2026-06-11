@@ -26,6 +26,8 @@
 #ifndef _GLX_dri_common_h
 #define _GLX_dri_common_h
 
+#include "screenint.h"
+
 typedef struct __GLXDRIconfig __GLXDRIconfig;
 struct __GLXDRIconfig {
     __GLXconfig config;
@@ -39,5 +41,11 @@ void *glxProbeDriver(const char *name,
                      void **coreExt, const char *coreName, int coreVersion,
                      void **renderExt, const char *renderName,
                      int renderVersion);
+
+/**
+ * \brief glxGetScreenVendor get screen vendor string
+ * exported for xDRI3GetDeviceUserPreferencesReq
+ */
+char* glxGetScreenVendor(ScreenPtr pScreen);
 
 #endif
