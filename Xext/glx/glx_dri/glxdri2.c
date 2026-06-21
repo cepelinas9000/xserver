@@ -1005,11 +1005,6 @@ __glXDRIscreenProbe(ScreenPtr pScreen)
     return NULL;
 }
 
-char*
-glxGetScreenVendor(ScreenPtr pScreen)
-{
-
-}
 
 _X_EXPORT __GLXprovider __glXDRI2Provider = {
     __glXDRIscreenProbe,

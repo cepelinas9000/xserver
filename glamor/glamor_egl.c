@@ -1593,6 +1593,20 @@ glamor_dri3_open_client(ClientPtr client,
     return Success;
 }
 
+static const char* 
+glamor_client_get_vendor_library (ClientPtr client,
+                                  ScreenPtr screen,
+                                  RRProviderPtr provider){
+
+    (void)client;
+    (void)provider;
+
+    const glamor_egl_priv_t *glamor_egl =
+        glamor_egl_get_screen_private(screen);
+
+    return glamor_egl->glvnd_vendor;
+}
+
 static dri3_screen_info_rec glamor_dri3_info = {
     .version = 2,
 
@@ -1610,6 +1624,9 @@ static dri3_screen_info_rec glamor_dri3_info = {
 
     /* Version 4 */
     .import_syncobj = NULL, /* TODO: implement */
+
+    /* Version 5 */
+    .vendor_library = glamor_client_get_vendor_library,
 };
 #endif /* DRI3 */
 

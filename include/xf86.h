@@ -118,6 +118,12 @@ extern _X_EXPORT DevUnion *xf86GetEntityPrivate(int entityIndex, int privIndex);
  */
 extern _X_EXPORT BusRec xf86EntityGetBusAddress(int entityIndex);
 
+/**
+ * @brief xf86EntityBusRecGetPlatformBus to reduce hardware specific includes
+ */
+
+extern _X_EXPORT const char* xf86EntityBusRecGetPlatformBus(BusRec *rec);
+
 /* xf86Configure.c */
 extern _X_EXPORT GDevPtr xf86AddBusDeviceToConfigure(const char *driver,
                                                      BusType bus, void *busData,

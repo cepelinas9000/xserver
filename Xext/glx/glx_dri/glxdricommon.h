@@ -42,10 +42,4 @@ void *glxProbeDriver(const char *name,
                      void **renderExt, const char *renderName,
                      int renderVersion);
 
-/**
- * \brief glxGetScreenVendor get screen vendor string
- * exported for xDRI3GetDeviceUserPreferencesReq
- */
-char* glxGetScreenVendor(ScreenPtr pScreen);
-
 #endif

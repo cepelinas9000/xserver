@@ -28,8 +28,16 @@
 #include "dri3_priv.h"
 #include <drm_fourcc.h>
 
+#include "dix/dix_priv.h"
+#include "dix/client_priv.h"
+
+#include <X11/Xatom.h>
+
+
 static int dri3_request;
 DevPrivateKeyRec dri3_screen_private_key;
+
+static DevPrivateKeyRec dri3_client_private_key;
 
 static x_server_generation_t dri3_screen_generation;
 
@@ -48,6 +56,42 @@ static void dri3_screen_close(CallbackListPtr *pcbl, ScreenPtr screen, void *unu
     dixScreenUnhookClose(screen, dri3_screen_close);
 }
 
+static void
+hook_dri3_ClientState(CallbackListPtr *pcbl, void *unused, void *calldata)
+{
+
+    NewClientInfoRec *clientinfo = (NewClientInfoRec *) calldata;
+    ClientPtr client = clientinfo->client;
+
+    switch (client->clientState)
+    {
+        case ClientStateRetained:
+        case ClientStateGone:
+        {
+            dri3_client_private_ptr ptr = dri3_get_client_private(client);
+            if (ptr){
+                free(ptr);
+            }
+            dixSetPrivate(&client->devPrivates, &dri3_client_private_key,NULL);
+
+        }
+
+    }
+}
+
+static void dri3_RootWindowFinalize(CallbackListPtr *pcbl, void *scrn, void *screen)
+{
+     ScreenPtr pScreen = screen;
+     (void)scrn;
+
+    /** add initial GPU **/
+    Atom atom = dixAddAtom("XLIBRE_X11_XGPU");
+    int initial_xgpu = 0;
+    dixChangeWindowProperty(serverClient, pScreen->root, atom, XA_INTEGER,8,PropModeReplace,1,&initial_xgpu,FALSE);
+
+}
+
+
 Bool
 dri3_screen_init(ScreenPtr screen, const dri3_screen_info_rec *info)
 {
@@ -55,6 +99,10 @@ dri3_screen_init(ScreenPtr screen, const dri3_screen_info_rec *info)
 
     if (!dixRegisterPrivateKey(&dri3_screen_private_key, PRIVATE_SCREEN, 0))
         return FALSE;
+
+    if (!dixRegisterPrivateKey(&dri3_client_private_key,PRIVATE_CLIENT,0)){
+        return FALSE;
+    }
 
     if (!dri3_screen_priv(screen)) {
         dri3_screen_priv_ptr screen_priv = calloc(1, sizeof (dri3_screen_priv_rec));
@@ -66,8 +114,14 @@ dri3_screen_init(ScreenPtr screen, const dri3_screen_info_rec *info)
         dixSetPrivate(&screen->devPrivates, &dri3_screen_private_key, screen_priv);
     }
 
+    AddCallback(&ClientStateCallback, hook_dri3_ClientState, NULL);
+
     if (info)
         dri3_screen_priv(screen)->info = info;
+
+
+    AddCallback(&RootWindowFinalizeCallback, dri3_RootWindowFinalize, screen);
+
 
     return TRUE;
 }
@@ -136,4 +190,26 @@ drm_format_for_depth(uint32_t depth, uint32_t bpp)
         default:
             return 0;
     }
+}
+
+dri3_client_private_ptr
+dri3_get_client_private(ClientPtr client)
+{
+    dri3_client_private_ptr ptr;
+    ptr = dixLookupPrivate(&client->devPrivates, &dri3_client_private_key);
+    return ptr;
+}
+
+dri3_client_private_ptr
+dri3_get_or_create_client_private(ClientPtr client)
+{
+    dri3_client_private_ptr ptr;
+    ptr = dixLookupPrivate(&client->devPrivates, &dri3_client_private_key);
+
+    if (ptr == NULL){
+        ptr = calloc(1,sizeof(dri3_client_private_rec));
+        dixSetPrivate(&client->devPrivates, &dri3_client_private_key,ptr);
+    }
+
+    return ptr;
 }

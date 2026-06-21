@@ -48,6 +48,8 @@
 #include "picturestr.h"
 #include <X11/Xfuncproto.h>
 
+#include <stdbool.h>
+
 /* required for ABI compatibility for now */
 #define RANDR_10_INTERFACE 1
 #define RANDR_12_INTERFACE 1
@@ -165,10 +167,18 @@ struct _rrProvider {
     struct _rrProvider *offload_sink;
     struct _rrProvider *output_source;
 
+     /** added for xDRI3GetDeviceUserPreferencesReq **/
+    bool is_xlibre_render;
     /** added for xDRI3GetDeviceUserPreferencesReq **/
-    Bool drmDevice;
+    bool drmDevice;
+
+    /** added for xDRI3GetDeviceUserPreferencesReq **/
     uint32_t drmMajor;
+
+    /** added for xDRI3GetDeviceUserPreferencesReq **/
     uint32_t drmMinor;
+
+    /** added for xDRI3GetDeviceUserPreferencesReq **/
     char *friendlyName;
 
 };

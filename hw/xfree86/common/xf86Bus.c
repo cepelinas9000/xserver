@@ -581,6 +581,17 @@ xf86EntityGetBusAddress(int entityIndex){
     }
     return (BusRec){ 0};
 }
+
+const char* 
+xf86EntityBusRecGetPlatformBus(BusRec *rec){
+
+   if (rec->type == BUS_PLATFORM){
+      return rec->id.plat->attribs->busid;
+   } else {
+       return NULL;
+   }
+}
+
 void
 xf86SetEntityShared(int entityIndex)
 {

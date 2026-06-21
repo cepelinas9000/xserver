@@ -103,10 +103,14 @@ typedef struct dri3_syncobj *(*dri3_import_syncobj_proc) (ClientPtr client,
                                                           XID id,
                                                           int fd);
 
-typedef char* (*dri3_client_get_vendor_library)(ClientPtr client,
-                                                   ScreenPtr scren,
+typedef const char* (*dri3_client_get_vendor_library_proc)(ClientPtr client,
+                                                   ScreenPtr screen,
                                                    RRProviderPtr provider);
 
+/*
+typedef int (*dri3_get_device_user_preferences)(ClientPtr client,
+                                                         ScreenPtr screen);
+*/
 typedef struct dri3_screen_info {
     uint32_t                    version;
 
@@ -128,11 +132,21 @@ typedef struct dri3_screen_info {
     dri3_import_syncobj_proc    import_syncobj;
 
     /* Version 5 */
-    dri3_client_get_vendor_library vendor_library; //! universal method get vendor library name
+    dri3_client_get_vendor_library_proc vendor_library; //! universal method get graphics/GL vendor library name, @returns static allocated string
 
 } dri3_screen_info_rec, *dri3_screen_info_ptr;
 
+typedef struct dri3_client_private_info {
+     ScreenPtr active_screen; /** client 'active' screen  **/
+} dri3_client_private_rec, *dri3_client_private_ptr;
+
 extern _X_EXPORT Bool
 dri3_screen_init(ScreenPtr screen, const dri3_screen_info_rec *info);
+
+dri3_client_private_ptr
+dri3_get_client_private(ClientPtr client);
+
+dri3_client_private_ptr
+dri3_get_or_create_client_private(ClientPtr client);
 
 #endif /* _DRI3_H_ */

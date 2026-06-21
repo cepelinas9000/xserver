@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <X11/extensions/randr.h>
 #include <X11/extensions/Xv.h>
 
@@ -75,6 +76,7 @@
 
 #include "driver.h"
 #include "drmmode_bo.h"
+
 
 static void AdjustFrame(ScrnInfoPtr pScrn, int x, int y);
 static Bool CloseScreen(ScreenPtr pScreen);
@@ -1922,10 +1924,23 @@ SetMaster(ScrnInfoPtr pScrn)
     if (ms->fd_passed)
         return TRUE;
 
+    int n_repeats = 5; 
+    useconds_t wait_time = 100000;
+
+    /* drmSetMaster can fail with EBUSY we should repeat few times before giving up */
+    repeat_setmaster:
     ret = drmSetMaster(ms->fd);
-    if (ret)
+    if (ret) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "drmSetMaster failed: %s\n",
                    strerror(errno));
+        if ((errno == EBUSY) && (n_repeats > 0)){ /* here live dragons */
+            xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"repeating drmSetMaster, after %u uS\n",wait_time);
+            usleep(wait_time);
+            wait_time+=100000; /* exponential backoff */
+            n_repeats--;
+            goto repeat_setmaster;
+        }
+    }
 
     return ret == 0;
 }
@@ -2240,6 +2255,14 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (ms->vrr_support)
         pScreen->SetWindowVRRMode = msSetWindowVRRMode;
 
+    char *renderDevice = drmGetRenderDeviceNameFromFd(ms->fd);
+
+    struct stat stat;
+    lstat(renderDevice, &stat);
+
+    xf86CrtcScreenUpdateAttrib(pScreen,"modesetting device",true,major(stat.st_rdev), minor(stat.st_rdev));
+
+    free(renderDevice);
     return TRUE;
 }
 
