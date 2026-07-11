@@ -52,7 +52,7 @@
 
 /* DRI3 */
 #define SERVER_DRI3_MAJOR_VERSION               1
-#define SERVER_DRI3_MINOR_VERSION               4
+#define SERVER_DRI3_MINOR_VERSION               5
 
 /* Generic event extension */
 #define SERVER_GE_MAJOR_VERSION                 1
