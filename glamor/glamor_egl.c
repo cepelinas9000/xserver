@@ -63,6 +63,7 @@
 #include "glamor_egl_priv.h"
 #include "glamor_glx_provider.h"
 #include "dri3.h"
+#include "Xext/dri3/dri3_priv.h"
 
 #ifndef GBM_MAX_PLANES
 #define GBM_MAX_PLANES 4
@@ -1378,9 +1379,18 @@ glamor_filter_modifiers(uint32_t *num_modifiers, uint64_t **modifiers,
     }
 }
 
+/**
+ * @brief glamor_get_modifiers_internal
+ * @param glamor_egl
+ * @param format
+ * @param num_modifiers
+ * @param modifiers
+ * @param modifiers_for_import if true include external_only modifiers for import
+ * @return
+ */
 static Bool
 glamor_get_modifiers_internal(glamor_egl_priv_t *glamor_egl, uint32_t format,
-                              uint32_t *num_modifiers, uint64_t **modifiers)
+                              uint32_t *num_modifiers, uint64_t **modifiers,bool modifiers_for_import)
 {
 #ifdef EGL_EXT_image_dma_buf_import_modifiers
     EGLBoolean *external_only;
@@ -1423,7 +1433,9 @@ glamor_get_modifiers_internal(glamor_egl_priv_t *glamor_egl, uint32_t format,
     }
 
     *num_modifiers = num;
-    glamor_filter_modifiers(num_modifiers, modifiers, external_only);
+    if (!modifiers_for_import){
+        glamor_filter_modifiers(num_modifiers, modifiers, external_only);
+    }
     free(external_only);
 
 
@@ -1438,15 +1450,24 @@ glamor_get_modifiers_internal(glamor_egl_priv_t *glamor_egl, uint32_t format,
     return TRUE;
 }
 
+
 Bool
 glamor_get_modifiers(ScreenPtr screen, uint32_t format,
                      uint32_t *num_modifiers, uint64_t **modifiers)
 {
     glamor_egl_priv_t *glamor_egl;
     glamor_egl = glamor_egl_get_screen_private(screen);
-    return glamor_get_modifiers_internal(glamor_egl, format, num_modifiers, modifiers);
+    return glamor_get_modifiers_internal(glamor_egl, format, num_modifiers, modifiers,false);
 }
 
+Bool
+glamor_get_modifiers_exportable(ScreenPtr screen, uint32_t format,
+                     uint32_t *num_modifiers, uint64_t **modifiers)
+{
+    glamor_egl_priv_t *glamor_egl;
+    glamor_egl = glamor_egl_get_screen_private(screen);
+    return glamor_get_modifiers_internal(glamor_egl, format, num_modifiers, modifiers,true);
+}
 const char *
 glamor_egl_get_driver_name(ScreenPtr screen)
 {
@@ -1476,6 +1497,32 @@ static void glamor_egl_pixmap_destroy(CallbackListPtr *pcbl, ScreenPtr pScreen, 
     if (pixmap_priv->image) {
         eglDestroyImageKHR(glamor_egl->display, pixmap_priv->image);
         pixmap_priv->image = NULL;
+    }
+
+    if (pixmap_priv->intermiadate_pixmap){
+
+        PixmapPtr p = pixmap_priv->intermiadate_pixmap;
+        pixmap_priv->intermiadate_pixmap = NULL;
+        p->drawable.pScreen->DestroyPixmap(p);
+    }
+
+    /*
+    if (pixmap_priv->target_screen_pixmap){
+
+          PixmapPtr p = pixmap_priv->target_screen_pixmap;
+
+          pixmap_priv->target_screen_pixmap = NULL;
+          p->drawable.pScreen->DestroyPixmap(p);
+
+    }
+*/
+
+    if (pixmap_priv->intermiadate_dmabuf_on_target){
+        PixmapPtr p = pixmap_priv->intermiadate_dmabuf_on_target;
+
+        pixmap_priv->intermiadate_dmabuf_on_target = NULL;
+        p->drawable.pScreen->DestroyPixmap(p);
+
     }
 }
 
@@ -1597,6 +1644,174 @@ glamor_dri3_open_client(ClientPtr client,
     return Success;
 }
 
+static const char*
+glamor_client_get_vendor_library (ClientPtr client,
+                                  ScreenPtr screen,
+                                  RRProviderPtr provider)
+{
+
+    (void)client;
+    (void)provider;
+
+    const glamor_screen_private *glamor_priv =
+        glamor_get_screen_private(screen);
+
+    return glamor_priv->glvnd_vendor;
+}
+
+
+
+
+/**
+ * @brief glamor_make_renderable makes 2 aditional textures (1 on pixmap gpu for export and 1 on target gpu
+ * @param screen_to
+ * @param pixmap
+ * @param n_acceptablemodifiers
+ * @param acceptablemodifiers
+ * @param flags
+ * @return
+ *
+ * @note: cepelinas9000: didn't have luck with make exportable function (always returned with modifier)
+ */
+static bool
+glamor_make_renderable(ScreenPtr screen_to,PixmapPtr pixmap,int n_acceptablemodifiers,const  CARD64 *acceptablemodifiers, int64_t flags)
+{
+ /* problem: using two nvidia gpus with 580 closed drivers dma-buf thingy doesn't function as expected */
+#if 0
+   /* played with deepseek and friends */
+    struct glamor_screen_private *glamor_priv_pixmap =
+        glamor_get_screen_private(pixmap->drawable.pScreen);
+
+    glamor_egl_priv_t *glamor_egl_pixmap =
+        glamor_egl_get_screen_private(pixmap->drawable.pScreen);
+
+    struct glamor_screen_private *glamor_priv_screen =
+        glamor_get_screen_private(screen_to);
+
+    glamor_egl_priv_t *glamor_egl_screen =
+        glamor_egl_get_screen_private(screen_to);
+
+
+    glamor_make_current(glamor_priv_pixmap);
+
+    struct gbm_bo *bo = gbm_bo_create_with_modifiers(glamor_egl_pixmap->gbm,
+                                  300,
+                                  300,
+                                  GBM_FORMAT_XRGB8888,
+                                  (uint64_t[]) { 0x0}, 1);
+
+    int fd1 = gbm_bo_get_fd(bo);
+    EGLint attribs[] = {
+      EGL_WIDTH,              300,
+      EGL_HEIGHT,             300,
+      EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_XRGB8888,
+      EGL_DMA_BUF_PLANE0_FD_EXT, fd1,
+      EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
+      EGL_DMA_BUF_PLANE0_PITCH_EXT, gbm_bo_get_stride(bo),
+      EGL_NONE
+   };
+
+   uint64_t modifier1 = gbm_bo_get_modifier(bo);
+ 
+   EGLImageKHR image1 = eglCreateImageKHR(glamor_egl_pixmap->display,
+                                      EGL_NO_CONTEXT,
+                                      EGL_LINUX_DMA_BUF_EXT,
+                                      NULL, // 对于 dma-buf，此参数应为 NULL
+                                      attribs);
+
+
+
+    close(fd1);
+
+    struct gbm_import_fd_modifier_data imp = { 0 };
+
+
+    imp.width = 300;
+    imp.height = 300;
+    imp.format = DRM_FORMAT_XRGB8888;
+    imp.num_fds = 1;
+    imp.fds[0] = gbm_bo_get_fd(bo);
+    imp.strides[0] = gbm_bo_get_stride(bo);
+    imp.offsets[0] = 0;
+    imp.modifier = gbm_bo_get_modifier(bo);
+
+
+    struct gbm_bo *b1 = gbm_bo_import(glamor_egl_screen->gbm,GBM_BO_IMPORT_FD_MODIFIER,&imp,GBM_BO_USE_SCANOUT);
+
+
+    fprintf(stderr,"gbm_bo b1=%p\n",b1);
+    /*
+    int fds[4] = {-1};
+    EGLint strides[4] = {-1};
+    EGLint offsets[4] = {-1};
+    
+    eglExportDMABUFImageMESA(glamor_egl_pixmap->display,image1,fds,strides,offsets);
+    
+    glamor_make_current(glamor_priv_screen);
+
+    EGLint attribs2[] = {
+      EGL_WIDTH,              300,
+      EGL_HEIGHT,             300,
+      EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_XRGB8888,
+      EGL_DMA_BUF_PLANE0_FD_EXT, fds[0],
+      EGL_DMA_BUF_PLANE0_OFFSET_EXT, offsets[0],
+      EGL_DMA_BUF_PLANE0_PITCH_EXT, strides[0],
+      EGL_NONE
+      
+    };
+    
+    EGLImageKHR image2 = eglCreateImageKHR(glamor_egl_screen->display,
+                                           EGL_NO_CONTEXT,
+                                      EGL_LINUX_DMA_BUF_EXT,
+                                      NULL, // 对于 dma-buf，此参数应为 NULL
+                                      attribs2);
+
+
+
+*/
+
+    return TRUE;
+#endif
+    return false;
+}
+static  PixmapPtr
+glamor_get_output_screen_render_pixmap(ScreenPtr screen_to,PixmapPtr pixmap, int64_t flags ){
+
+    (void)screen_to;
+    (void) flags;
+
+    struct glamor_pixmap_private *pixmap_priv =
+        glamor_get_pixmap_private(pixmap);
+
+    struct glamor_pixmap_private *pixmap_inter_priv =
+        glamor_get_pixmap_private(pixmap_priv->intermiadate_pixmap);
+
+
+    glamor_screen_private *pixmap_glamor_scr_priv =
+        glamor_get_screen_private(pixmap->drawable.pScreen);
+
+    glamor_make_current(pixmap_glamor_scr_priv);
+
+    GLuint tex_in;
+    glGenTextures(1, &tex_in);
+    glBindTexture(GL_TEXTURE_2D, tex_in);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, pixmap_priv->image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    GLuint tex_out;
+    glGenTextures(1, &tex_out);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex_out);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, pixmap_inter_priv->image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+
+
+
+
+    return pixmap_priv->intermiadate_dmabuf_on_target;
+}
+
 static dri3_screen_info_rec glamor_dri3_info = {
     .version = 2,
 
@@ -1614,6 +1829,12 @@ static dri3_screen_info_rec glamor_dri3_info = {
 
     /* Version 4 */
     .import_syncobj = NULL, /* TODO: implement */
+
+    /* Version 5 */
+    .vendor_library = glamor_client_get_vendor_library,
+    .make_pixmap_renderable = glamor_make_renderable,
+    .get_modifiers_exportable = glamor_get_modifiers_exportable,
+    .get_output_screen_render_pixmap = glamor_get_output_screen_render_pixmap,
 };
 #endif /* DRI3 */
 

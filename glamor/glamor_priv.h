@@ -437,6 +437,12 @@ typedef struct glamor_pixmap_private {
     glamor_pixmap_fbo **fbo_array;
 
     Bool is_cbcr;
+
+    /* TODO: XXX this is very very hacky */
+    PixmapPtr intermiadate_pixmap;  //! holds pixmap with acceptable modifier for primary gpu
+
+    PixmapPtr intermiadate_dmabuf_on_target; //! dma-buf reference of intermiadate_pixmap
+
 } glamor_pixmap_private;
 
 extern DevPrivateKeyRec glamor_pixmap_private_key;
