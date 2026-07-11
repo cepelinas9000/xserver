@@ -111,6 +111,19 @@ extern _X_EXPORT void xf86ClearPrimInitDone(int entityIndex);
 extern _X_EXPORT int xf86AllocateEntityPrivateIndex(void);
 extern _X_EXPORT DevUnion *xf86GetEntityPrivate(int entityIndex, int privIndex);
 
+/**
+ * @brief xf86EntityGetBusAddress used for xDRI3GetDeviceUserPreferencesReq to get device pci address
+ * @param entityIndex
+ * @return
+ */
+extern _X_EXPORT BusRec xf86EntityGetBusAddress(int entityIndex);
+
+/**
+ * @brief xf86EntityBusRecGetPlatformBus to reduce hardware specific includes
+ */
+
+extern _X_EXPORT const char* xf86EntityBusRecGetPlatformBus(BusRec *rec);
+
 /* xf86Configure.c */
 extern _X_EXPORT GDevPtr xf86AddBusDeviceToConfigure(const char *driver,
                                                      BusType bus, void *busData,
