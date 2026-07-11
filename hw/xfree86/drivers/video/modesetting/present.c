@@ -299,6 +299,13 @@ ms_present_check_unflip(RRCrtcPtr crtc,
                 *reason = PRESENT_FLIP_REASON_BUFFER_FORMAT;
             return FALSE;
         }
+    } else {
+
+       *reason = PRESENT_FLIP_REASON_UNKNOWN;
+       xf86DrvMsg(screen->myNum, X_WARNING, "ms_present_check_unflip: gbm_bo_from_pixmap retuned (nil)\n");
+
+       return FALSE;
+
     }
 #endif
 
