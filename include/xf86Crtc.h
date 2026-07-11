@@ -972,6 +972,20 @@ extern _X_EXPORT void
 
 extern _X_EXPORT ScreenInitRetType xf86CrtcScreenInit(ScreenPtr pScreen);
 
+/**
+ * @brief xf86CrtcScreenUpdateAttrib update randr attributes for xDRI3GetDeviceUserPreferencesGPUDevice
+ * @param pScreen
+ * @param friendly_name
+ * @param is_xlibre_render
+ * @param drm_major
+ * @param drm_minor
+ */
+extern _X_EXPORT void
+xf86CrtcScreenUpdateAttrib(ScreenPtr pScreen,
+                           const char *friendly_name,
+                           bool is_xlibre_render,
+                           const uint32_t drm_major, const uint32_t drm_minor );
+
 extern _X_EXPORT void
 xf86AssignNoOutputInitialSize(ScrnInfoPtr scrn, const OptionInfoRec *options,
                               int *no_output_width, int *no_output_height);

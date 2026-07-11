@@ -844,6 +844,26 @@ xf86CrtcScreenInit(ScreenPtr screen)
 #endif
 }
 
+void
+xf86CrtcScreenUpdateAttrib(ScreenPtr pScreen,
+                                                 const char *friendly_name,
+                                                 bool is_xlibre_render,
+                                                 const uint32_t drm_major,const uint32_t drm_minor )
+{
+    rrScrPrivPtr pScrPriv = rrGetScrPriv(pScreen);
+    RRProviderPtr pp = pScrPriv->provider;
+
+    pp->is_xlibre_render = is_xlibre_render;
+    pp->drmMajor = drm_major;
+    pp->drmMinor = drm_minor;
+    if (drm_major != 0 && drm_minor != 0){
+        pp->drmDevice = true;
+    }
+
+    pp->friendlyName = strdup(friendly_name);
+
+}
+
 static DisplayModePtr
 xf86DefaultMode(xf86OutputPtr output, int width, int height)
 {
