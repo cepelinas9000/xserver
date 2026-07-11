@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <X11/extensions/randr.h>
 #include <X11/extensions/Xv.h>
 
@@ -2241,6 +2242,14 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (ms->vrr_support)
         pScreen->SetWindowVRRMode = msSetWindowVRRMode;
 
+    char *renderDevice = drmGetRenderDeviceNameFromFd(ms->fd);
+
+    struct stat stat;
+    lstat(renderDevice, &stat);
+
+    xf86CrtcScreenUpdateAttrib(pScreen,"modesetting device",true,major(stat.st_rdev), minor(stat.st_rdev));
+
+    free(renderDevice);
     return TRUE;
 }
 
