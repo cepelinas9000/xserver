@@ -4185,7 +4185,16 @@ drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
     drmmode_clones_init(pScrn, drmmode, mode_res);
 
     drmModeFreeResources(mode_res);
-    xf86ProviderSetup(pScrn, NULL, "modesetting");
+
+    {
+        static int num = 0;
+
+        num++;
+        char buf[64];
+
+        snprintf(buf,64,"modesetting-%d",num);
+        xf86ProviderSetup(pScrn, NULL, buf);
+    }
 
     xf86InitialConfiguration(pScrn, TRUE);
 
