@@ -23,6 +23,8 @@
 #ifndef _DRI3_H_
 #define _DRI3_H_
 
+#include <stdbool.h>
+
 #include <X11/extensions/dri3proto.h>
 #include <randrstr.h>
 
@@ -103,6 +105,22 @@ typedef struct dri3_syncobj *(*dri3_import_syncobj_proc) (ClientPtr client,
                                                           XID id,
                                                           int fd);
 
+typedef const char* (*dri3_client_get_vendor_library_proc)(ClientPtr client,
+                                                   ScreenPtr screen,
+                                                   RRProviderPtr provider);
+
+/**
+ * @brief very similar PixmapShareToSecondary, but with explicit modifiers
+ * cepelinas9000: probably we can use PixmapShareToSecondary and similar
+ *
+ */
+typedef bool (*dri3_make_pixmap_renderable_proc)(ScreenPtr screen,PixmapPtr pixmap,int n_acceptablemodifiers,const  CARD64 *acceptablemodifiers, int64_t flags);
+
+/**
+ * @brief transfers wire up buffers from secondary gpu
+ */
+typedef PixmapPtr (*dri3_get_output_screen_render_pixmap_proc)(ScreenPtr screen_to,PixmapPtr pixmap, int64_t flags );
+
 typedef struct dri3_screen_info {
     uint32_t                    version;
 
@@ -123,9 +141,25 @@ typedef struct dri3_screen_info {
     /* Version 4 */
     dri3_import_syncobj_proc    import_syncobj;
 
+    /* Version 5 */
+    dri3_client_get_vendor_library_proc   vendor_library; //! universal method get graphics/GL vendor library name, @returns static allocated string
+    dri3_make_pixmap_renderable_proc       make_pixmap_renderable;
+    dri3_get_output_screen_render_pixmap_proc   get_output_screen_render_pixmap;
+    dri3_get_modifiers_proc     get_modifiers_exportable; //! get supported modifiers including `export-only` too
+
 } dri3_screen_info_rec, *dri3_screen_info_ptr;
+
+typedef struct dri3_client_private_info {
+     ScreenPtr active_screen; /** client 'active' screen  **/
+} dri3_client_private_rec, *dri3_client_private_ptr;
 
 extern _X_EXPORT Bool
 dri3_screen_init(ScreenPtr screen, const dri3_screen_info_rec *info);
+
+dri3_client_private_ptr
+dri3_get_client_private(ClientPtr client);
+
+dri3_client_private_ptr
+dri3_get_or_create_client_private(ClientPtr client);
 
 #endif /* _DRI3_H_ */

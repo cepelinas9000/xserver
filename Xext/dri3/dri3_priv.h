@@ -78,6 +78,7 @@ proc_dri3_dispatch(ClientPtr client);
 int
 dri3_open(ClientPtr client, ScreenPtr screen, RRProviderPtr provider, int *fd);
 
+_X_EXPORT
 int
 dri3_pixmap_from_fds(PixmapPtr *ppixmap, ScreenPtr screen,
                      CARD8 num_fds, const int *fds,
@@ -88,6 +89,7 @@ dri3_pixmap_from_fds(PixmapPtr *ppixmap, ScreenPtr screen,
 int
 dri3_fd_from_pixmap(PixmapPtr pixmap, CARD16 *stride, CARD32 *size);
 
+_X_EXPORT
 int
 dri3_fds_from_pixmap(PixmapPtr pixmap, int *fds,
                      uint32_t *strides, uint32_t *offsets,
@@ -100,6 +102,26 @@ dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
                              CARD64 **drawable_modifiers,
                              CARD32 *num_screen_modifiers,
                              CARD64 **screen_modifiers);
+
+/**
+ * @brief dri3_make_pixmap_renderable make pixmap memory layout friendly for screen.
+ * difference from make pixmap shared - texture modifier not necessary linear
+ * @param screen
+ * @param drawable
+ * @param n_acceptablemodifiers
+ * @param acceptablemodifiers
+ * @param flags
+ * @return true if sucessfull
+ */
+bool dri3_make_pixmap_renderable(ScreenPtr screen, PixmapPtr drawable, int n_acceptablemodifiers, const  CARD64 *acceptablemodifiers, int64_t flags);
+
+
+/**
+ * @brief returns output pixmap for screen_to screen
+ * @note dri3_make_pixmap_renderable need called before
+ **/
+PixmapPtr
+dri3_get_output_screen_render_pixmap(ScreenPtr screen_to,PixmapPtr pixmap, int64_t flags );
 
 int
 dri3_import_syncobj(ClientPtr client, ScreenPtr screen, XID id, int fd);

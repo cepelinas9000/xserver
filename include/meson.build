@@ -567,6 +567,12 @@ if build_xorg_sdk
         install_dir: xorgsdkdir,
     )
 
+    # install xlibre proto extensions
+    xorgsdkdir_exts = join_paths(xorgsdkdir,'xlibreEXT')
+    install_data(
+        ['xlibreEXT/dri3xlibreproto.h' ],
+        install_dir :  xorgsdkdir_exts
+    )
     if build_dga
         install_data(['dgaproc.h'], install_dir: xorgsdkdir)
     endif
