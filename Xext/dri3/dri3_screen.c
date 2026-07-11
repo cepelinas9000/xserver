@@ -56,6 +56,7 @@ dri3_pixmap_from_fds(PixmapPtr *ppixmap, ScreenPtr screen,
                      const CARD32 *strides, const CARD32 *offsets,
                      CARD8 depth, CARD8 bpp, CARD64 modifier)
 {
+
     dri3_screen_priv_ptr        ds = dri3_screen_priv(screen);
     const dri3_screen_info_rec *info = ds->info;
     PixmapPtr                   pixmap;
@@ -299,3 +300,27 @@ int dri3_import_syncobj(ClientPtr client, ScreenPtr screen, XID id, int fd)
 
     return Success;
 }
+
+bool
+dri3_make_pixmap_renderable(ScreenPtr screen,PixmapPtr drawable,int n_acceptablemodifiers,const  CARD64 *acceptablemodifiers, int64_t flags)
+{
+    const dri3_screen_info_rec *info = dri3_screen_priv(screen)->info;
+
+    if (!info->make_pixmap_renderable){
+        return false;
+    }
+    return info->make_pixmap_renderable(screen,drawable,n_acceptablemodifiers,acceptablemodifiers,flags);
+}
+
+PixmapPtr
+dri3_get_output_screen_render_pixmap(ScreenPtr screen_to,PixmapPtr pixmap, int64_t flags ){
+
+    const dri3_screen_info_rec *info = dri3_screen_priv(screen_to)->info;
+
+    if (!info->get_output_screen_render_pixmap){
+        return false;
+    }
+
+    return info->get_output_screen_render_pixmap(screen_to,pixmap,flags);
+}
+

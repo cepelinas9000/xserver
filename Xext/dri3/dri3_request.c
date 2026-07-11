@@ -19,6 +19,7 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
  * OF THIS SOFTWARE.
  */
+
 #include <dix-config.h>
 
 #include <unistd.h>
@@ -32,10 +33,18 @@
 
 #include "dri3_priv.h"
 #include "Xext/sync/syncsrv.h"
+#include "xlibreEXT/dri3xlibreproto.h"
+#include "xf86.h"
+
 #include <xace.h>
 #include <protocol-versions.h>
 #include <drm_fourcc.h>
 #include "dixstruct_priv.h"
+
+#include "propertyst.h"
+#include "property_priv.h"
+
+#include <X11/Xatom.h>
 
 static Bool
 dri3_screen_can_one_point_one(ScreenPtr screen)
@@ -129,6 +138,9 @@ proc_dri3_query_version(ClientPtr client)
      * higher than the requested version.
      */
 
+    reply.majorVersion = 1;
+    reply.minorVersion = 5;
+
     if (reply.majorVersion > stuff->majorVersion ||
         (reply.majorVersion == stuff->majorVersion &&
          reply.minorVersion > stuff->minorVersion)) {
@@ -185,6 +197,11 @@ proc_dri3_open(ClientPtr client)
     }
     screen = drawable->pScreen;
 
+    /* XXX: it only handles default case */
+    dri3_client_private_ptr client_priv = dri3_get_client_private(client);
+    if (client_priv && client_priv->active_screen && provider == NULL){
+       screen = client_priv->active_screen;
+    }
     status = dri3_open(client, screen, provider, &fd);
     if (status != Success)
         return status;
@@ -398,6 +415,33 @@ proc_dri3_get_supported_modifiers(ClientPtr client)
                                  &nwindowmodifiers, &window_modifiers,
                                  &nscreenmodifiers, &screen_modifiers);
 
+    /** XXX: in current case nwindowmodifiers, window_modifiers need to refelected from what dri_3_open returned or similar */
+     dri3_client_private_ptr ptr = dri3_get_client_private(client);
+    if (ptr && ptr->active_screen != pScreen){
+
+      free(window_modifiers);
+      free(screen_modifiers);
+
+      window_modifiers = NULL;
+      screen_modifiers = NULL;
+      nwindowmodifiers = 0;
+      nscreenmodifiers = 0;
+
+      dri3_get_supported_modifiers(ptr->active_screen, &window->drawable,
+                                 stuff->depth, stuff->bpp,
+                                 &nwindowmodifiers, &window_modifiers,
+                                 &nscreenmodifiers, &screen_modifiers);
+
+
+      /* reading specification here must optimal windows modifiers for pipeline. In other words here should be at minimum intersection of modifiers */
+      if (nwindowmodifiers == 0){
+          window_modifiers = malloc(sizeof(CARD64) * 1);
+          window_modifiers[0] = 0;
+          nwindowmodifiers = 1;
+      }
+    }
+
+
     x_rpcbuf_t rpcbuf = { .swapped = client->swapped, .err_clear = TRUE };
     x_rpcbuf_write_CARD64s(&rpcbuf, window_modifiers, nwindowmodifiers);
     x_rpcbuf_write_CARD64s(&rpcbuf, screen_modifiers, nscreenmodifiers);
@@ -436,7 +480,7 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
 
     int fds[4];
     CARD32 strides[4], offsets[4];
-    ScreenPtr screen;
+    ScreenPtr screen,screen_primary = NULL;
     WindowPtr window;
     PixmapPtr pixmap;
     int rc;
@@ -494,6 +538,15 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
     offsets[2] = stuff->offset2;
     offsets[3] = stuff->offset3;
 
+    dri3_client_private_ptr ptr = dri3_get_client_private(client);
+    bool import_from_other_gpu = false;
+    if (ptr) {
+        import_from_other_gpu = screen != ptr->active_screen;
+        screen_primary = screen;
+        screen = ptr->active_screen;
+    }
+
+
     rc = dri3_pixmap_from_fds(&pixmap, screen,
                               stuff->num_buffers, fds,
                               stuff->width, stuff->height,
@@ -509,6 +562,7 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
 
     pixmap->drawable.id = stuff->pixmap;
 
+
     /* security creation/labeling check */
     rc = XaceHookResourceAccess(client, stuff->pixmap, X11_RESTYPE_PIXMAP,
                   pixmap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
@@ -520,6 +574,9 @@ proc_dri3_pixmap_from_buffers(ClientPtr client)
     if (!AddResource(stuff->pixmap, X11_RESTYPE_PIXMAP, (void *) pixmap))
         return BadAlloc;
 
+    if (import_from_other_gpu){
+        dri3_make_pixmap_renderable(screen_primary,pixmap,0,NULL,0);
+    }
     return Success;
 }
 
@@ -576,6 +633,16 @@ proc_dri3_buffers_from_pixmap(ClientPtr client)
     return X_SEND_REPLY_WITH_RPCBUF(client, reply, rpcbuf);
 }
 
+static bool drm_device_matches(ScreenPtr scr,uint32_t drmMajor,uint32_t drmMinor){
+    rrScrPrivPtr pScrPriv = rrGetScrPriv(scr);
+    RRProviderPtr pp = pScrPriv->provider;
+
+    if ( pp->drmDevice){
+        return pp->drmMajor == drmMajor && pp->drmMinor == drmMinor;
+    }
+
+    return false;
+}
 static int
 proc_dri3_set_drm_device_in_use(ClientPtr client)
 {
@@ -597,7 +664,36 @@ proc_dri3_set_drm_device_in_use(ClientPtr client)
      * we will ignore it until multi-device support is more complete.
      * Otherwise we can't advertise support for DRI3 1.4.
      */
-    return Success;
+
+
+
+    /* XXX cepelinas9000: this is not correct implementation - it only set enough to return selected device when dri3_open called */
+    /* XXX cepelinas9000: this is only for drm devices (modesetting for now) */
+    /* XXX cepelinas9000: probaly glx provider should be set too  */
+
+
+    if (drm_device_matches(window->drawable.pScreen,stuff->drmMajor,stuff->drmMinor)){
+        dri3_client_private_ptr ptr = dri3_get_or_create_client_private(client);
+        ptr->active_screen  = window->drawable.pScreen;
+        return Success;
+    }
+
+    ScreenPtr secondary;
+    xorg_list_for_each_entry(secondary,&window->drawable.pScreen->secondary_list, secondary_head) {
+        if (!secondary->is_offload_secondary){
+            continue;
+        }
+
+
+        if (drm_device_matches(secondary,stuff->drmMajor,stuff->drmMinor)){
+            dri3_client_private_ptr ptr = dri3_get_or_create_client_private(client);
+            ptr->active_screen = secondary;
+            return Success;
+        }
+
+    }
+
+    return BadMatch;
 }
 
 static int
@@ -647,6 +743,205 @@ proc_dri3_free_syncobj(ClientPtr client)
     return Success;
 }
 
+
+static void write_gpu_UserPreferencesGPUDevice(x_rpcbuf_t *rpcbuf,ScreenPtr scr,ClientPtr client,bool prefered){
+
+    xDRI3GetDeviceUserPreferencesGPUDevice reply = { 0 };
+
+
+    rrScrPrivPtr pScrPriv = rrGetScrPriv(scr);
+    RRProviderPtr pp = pScrPriv->provider;
+
+    dri3_screen_priv_ptr        ds = dri3_screen_priv(scr);
+    const dri3_screen_info_rec  *info = ds->info;
+
+    const char *vendor = "";
+    const char *friendly_name = "";
+
+    if (info->vendor_library){
+        vendor = info->vendor_library(client,scr,pScrPriv->provider);
+    } else {
+       /* guess vendor from dirver name, other driver can have callback only nvidia propertary  */
+
+       ScrnInfoPtr scrn = xf86ScreenToScrn(scr);
+       vendor = scrn->confScreen->device->driver;
+    }
+
+    reply.vendor_name_len = bytes_to_int32(strlen(vendor));
+
+    reply.provider = pp->id;
+    reply.provider_name_len = bytes_to_int32(pScrPriv->provider->nameLength+1);
+
+    if (pp->drmDevice){
+        reply.drmMajor = pp->drmMajor;
+        reply.drmMinor = pp->drmMinor;
+    } else {
+        reply.struct_flags |= xDRI3GetDeviceUserPreferences_struct_flag_NOTDRM;
+    }
+
+    if (scr->current_primary == NULL){ /* primary screen - mark as desktop render, XXX: maybe someday for cases when there "no penalty" allow multiple devices */
+        reply.usage_flags |=   xDRI3GetDeviceUserPreferences_flag_DESKTOPRENDER;
+    }
+
+
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(scr);
+
+    BusRec br = xf86EntityGetBusAddress(pScrn->entityList[0]);
+
+    char device_location_buf[64] = {0};
+
+    if (br.type == BUS_PCI){
+        int device_location_buf_len = 0;
+        device_location_buf_len = snprintf(device_location_buf,63,"pci-%04x:%02x:%02x.%d",br.id.pci->domain,br.id.pci->bus,br.id.pci->dev,br.id.pci->func);
+        reply.device_location_len = bytes_to_int32(device_location_buf_len + 1);
+    } else if (br.type == BUS_PLATFORM){
+       int device_location_buf_len = 0;
+       device_location_buf_len = snprintf(device_location_buf,63,"%s",xf86EntityBusRecGetPlatformBus(&br));
+       if (strncmp(device_location_buf,"pci:",4)== 0){
+          device_location_buf[3]='-';
+       }
+       for(int i=4;i<device_location_buf_len;++i){
+           if (device_location_buf[i] == ':' || device_location_buf[i] == '.') {
+               device_location_buf[i] = '_';
+           }
+       }
+       reply.device_location_len = bytes_to_int32(device_location_buf_len + 1);
+       
+    }
+
+
+    if (pp->friendlyName){
+        friendly_name = pp->friendlyName;
+        reply.device_friendly_name_len = bytes_to_int32(strlen(pp->friendlyName));
+
+    } else {
+        friendly_name = pScrPriv->provider->name;
+        reply.device_friendly_name_len =bytes_to_int32(pScrPriv->provider->nameLength+1); /* use as provider name */
+    }
+
+
+
+    reply.vendor_name_offset = bytes_to_int32(sizeof(xDRI3GetDeviceUserPreferencesGPUDevice));
+    reply.provider_name_offset = reply.vendor_name_offset + reply.vendor_name_len;
+    reply.device_location_offset = reply.provider_name_offset + reply.provider_name_len;
+    reply.device_friendly_name_offset = reply.device_location_offset + reply.device_location_len;
+
+    reply.length = bytes_to_int32(sizeof(xDRI3GetDeviceUserPreferencesGPUDevice))  + reply.vendor_name_len + reply.provider_name_len + reply.device_location_len + reply.device_friendly_name_len;
+
+    if (prefered) {
+       reply.prefer |= xDRI3GetDeviceUserPreferences_prefer_PREFER;
+    }
+
+    X_REPLY_FIELD_CARD32(length);
+    X_REPLY_FIELD_CARD32(struct_flags);
+    X_REPLY_FIELD_CARD32(provider);
+
+    X_REPLY_FIELD_CARD32(drmMajor);
+    X_REPLY_FIELD_CARD32(drmMinor);
+
+    X_REPLY_FIELD_CARD16(vendor_name_len);
+    X_REPLY_FIELD_CARD16(vendor_name_offset);
+
+    X_REPLY_FIELD_CARD16(provider_name_len);
+    X_REPLY_FIELD_CARD16(provider_name_offset);
+
+    X_REPLY_FIELD_CARD16(device_location_len);
+    X_REPLY_FIELD_CARD16(device_location_offset);
+
+    X_REPLY_FIELD_CARD16(device_friendly_name_len);
+    X_REPLY_FIELD_CARD16(device_friendly_name_offset);
+
+    X_REPLY_FIELD_CARD32(pad); /* XXX pad XXX */
+
+    X_REPLY_FIELD_CARD64(usage_flags);
+    X_REPLY_FIELD_CARD64(prefer);
+
+
+    x_rpcbuf_write_binary_pad(rpcbuf,&reply,sizeof(xDRI3GetDeviceUserPreferencesGPUDevice));
+
+    x_rpcbuf_write_string_0t_pad(rpcbuf,vendor);
+    x_rpcbuf_write_string_0t_pad(rpcbuf,pScrPriv->provider->name);
+    x_rpcbuf_write_string_0t_pad(rpcbuf,device_location_buf);
+    x_rpcbuf_write_string_0t_pad(rpcbuf,friendly_name);
+
+
+}
+
+
+
+/* here for now */
+static int
+proc_dri3_get_device_user_preferences(ClientPtr client)
+{
+    X_REQUEST_HEAD_STRUCT(xDRI3GetDeviceUserPreferencesReq);
+    X_REQUEST_FIELD_CARD32(flags);
+    X_REQUEST_FIELD_CARD32(drawable);
+
+
+    DrawablePtr drawable;
+
+    int status = dixLookupDrawable(&drawable, stuff->drawable, client, 0, DixGetAttrAccess);
+    if (status != Success)
+        return status;
+
+    x_rpcbuf_t rpcbuf = { .swapped = client->swapped, .err_clear = TRUE };
+
+    ScreenPtr p = drawable->pScreen;
+
+
+    PropertyPtr pProp;
+    Atom prop_atom = dixAddAtom("XLIBRE_X11_XGPU");
+    int rc= dixLookupProperty(&pProp, p->root, prop_atom, serverClient, DixReadAccess);
+    /* XXX: handle if property deleted */
+    ScreenPtr secondary;
+
+
+    int prefferd_xgpu =0;
+
+    int num_secondaries = 0;
+     xorg_list_for_each_entry(secondary, &p->secondary_list, secondary_head) {
+         if (!secondary->is_offload_secondary){
+             continue;
+         }
+
+         num_secondaries++;
+     }
+
+    if (pProp->type == XA_INTEGER && pProp->format == 8){
+        CARD8 *prop_data = (CARD8*)pProp->data;
+        if (prop_data[0] >= 0 && prop_data[0] < (num_secondaries+1)){
+            prefferd_xgpu = prop_data[0];
+        }
+
+    }
+
+    int num_devices = 1;
+
+
+
+    write_gpu_UserPreferencesGPUDevice(&rpcbuf,p,client,prefferd_xgpu == 0);
+
+    xorg_list_for_each_entry(secondary, &p->secondary_list, secondary_head) {
+        if (!secondary->is_offload_secondary){
+            continue;
+        }
+        write_gpu_UserPreferencesGPUDevice(&rpcbuf,secondary,client,prefferd_xgpu == num_devices );
+        num_devices++;
+
+    }
+
+    xDRI3GetDeviceUserPreferencesReply reply = {
+        .num_devices = num_devices,
+    };
+
+    X_REPLY_FIELD_CARD32(num_devices);
+
+
+    return X_SEND_REPLY_WITH_RPCBUF(client,reply,rpcbuf);
+;
+}
+
+
 int
 proc_dri3_dispatch(ClientPtr client)
 {
@@ -685,6 +980,11 @@ proc_dri3_dispatch(ClientPtr client)
             return proc_dri3_import_syncobj(client);
         case xDRI3FreeSyncobj:
             return proc_dri3_free_syncobj(client);
+
+        /* v1.5 XLibre*/
+        case xDRI3GetDeviceUserPreferences:
+            return proc_dri3_get_device_user_preferences(client);
+
         default:
             return BadRequest;
     }

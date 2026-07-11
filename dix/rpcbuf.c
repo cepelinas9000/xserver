@@ -101,7 +101,7 @@ Bool x_rpcbuf_write_string_pad(x_rpcbuf_t *rpcbuf, const char *str)
     return __x_rpcbuf_write_bin_pad(rpcbuf, str, strlen(str));
 }
 
-_X_EXPORT /* only for GLX, not part of public ABI */
+_X_EXPORT /* only for GLX & DRI3, not part of public ABI */
 Bool x_rpcbuf_write_string_0t_pad(x_rpcbuf_t *rpcbuf, const char *str)
 {
     if (!str)
